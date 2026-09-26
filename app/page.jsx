@@ -1,1642 +1,1307 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { getDistanceKm } from "@/lib/geo";
 
 import {
   Search,
-  Bell,
-  ChevronRight,
-  LayoutDashboard,
-  Store,
-  Users,
-  CloudSun,
-  Settings,
-  User,
   MapPin,
-  Camera,
-  ArrowRight,
   Star,
-  SlidersHorizontal,
+  ShieldCheck,
+  Users,
+  Headphones,
   Leaf,
+  Tractor,
+  UserCheck,
   Sprout,
   Droplets,
   FlaskConical,
-  Wrench,
-  Tractor,
+  Sparkles,
+  ArrowRight,
   X,
-  Plus,
-  Upload,
-  CheckCircle,
-  Menu,
+  Loader2,
+  RefreshCw,
+  PlusCircle,
 } from "lucide-react";
 
-/* =========================
-   CATEGORY DATA
-========================= */
-
-const categories = [
-  {
-    name: "EQUIPMENT",
-    count: "124 Listings",
-    icon: <Tractor size={42} />,
-  },
-  {
-    name: "WORKERS",
-    count: "86 Listings",
-    icon: <Wrench size={42} />,
-  },
-  {
-    name: "SEEDS",
-    count: "312 Listings",
-    icon: <Sprout size={42} />,
-  },
-  {
-    name: "IRRIGATION",
-    count: "45 Listings",
-    icon: <Droplets size={42} />,
-  },
-  {
-    name: "FERTILIZER",
-    count: "98 Listings",
-    icon: <FlaskConical size={42} />,
-  },
-];
-
-/* =========================
-   INITIAL RESOURCES
-========================= */
-
-const initialResources = [
-  {
-    id: 1,
-    type: "EQUIPMENT",
-    title: "Tractor Rental",
-    rating: 4.8,
-    distance: 2.4,
-    price: 45,
-    unit: "day",
-    location: "Idukki, Kerala",
-    provider: "Green Valley Farms",
-    image:
-      "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 2,
-    type: "WORKERS",
-    title: "Experienced Farm Workers",
-    rating: 4.9,
-    distance: 5.1,
-    price: 700,
-    unit: "day",
-    location: "Kattappana, Kerala",
-    provider: "Kerala Farm Services",
-    image:
-      "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 3,
-    type: "SEEDS",
-    title: "Premium Vegetable Seeds",
-    rating: 4.7,
-    distance: 3.8,
-    price: 120,
-    unit: "packet",
-    location: "Thodupuzha, Kerala",
-    provider: "Fresh Grow Seeds",
-    image:
-      "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 4,
-    type: "IRRIGATION",
-    title: "Smart Irrigation Kit",
-    rating: 4.6,
-    distance: 6.2,
-    price: 1200,
-    unit: "week",
-    location: "Adimali, Kerala",
-    provider: "Smart Agri Solutions",
-    image:
-      "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 5,
-    type: "FERTILIZER",
-    title: "Organic Fertilizer",
-    rating: 4.8,
-    distance: 4.5,
-    price: 350,
-    unit: "bag",
-    location: "Nedumkandam, Kerala",
-    provider: "Eco Farm Supplies",
-    image:
-      "https://images.unsplash.com/photo-1585314062604-1a357de8b000?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 6,
-    type: "EQUIPMENT",
-    title: "Power Tiller",
-    rating: 4.9,
-    distance: 7.2,
-    price: 850,
-    unit: "day",
-    location: "Munnar, Kerala",
-    provider: "High Range Machinery",
-    image:
-      "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
-/* =========================
-   MAIN COMPONENT
-========================= */
-
 export default function Home() {
-  const [resources, setResources] = useState(initialResources);
+  // -----------------------------
+  // STATE
+  // -----------------------------
 
-  const [search, setSearch] = useState("");
+  const [resources, setResources] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const [selectedCategory, setSelectedCategory] = useState("ALL");
-
-  const [selectedResource, setSelectedResource] = useState(null);
-
-  const [showAll, setShowAll] = useState(false);
-
-  const [showFilter, setShowFilter] = useState(false);
-
-  const [minRating, setMinRating] = useState(0);
-
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  const [showSettings, setShowSettings] = useState(false);
-
-  const [showCropAssistant, setShowCropAssistant] =
-    useState(false);
-
-  const [showAddResource, setShowAddResource] =
-    useState(false);
-
-  const [mobileMenu, setMobileMenu] = useState(false);
-
-  const [cropImage, setCropImage] = useState(null);
-
-  const [cropResult, setCropResult] = useState(null);
-
-  const [newResource, setNewResource] = useState({
-    title: "",
-    type: "EQUIPMENT",
-    price: "",
-    location: "",
-    provider: "",
+  const [userLocation, setUserLocation] = useState({
+    lat: 9.9312,
+    lng: 76.2673,
   });
 
-  const fileInputRef = useRef(null);
+  const [locationName, setLocationName] = useState("Your location");
 
-  /* =========================
-     SEARCH + FILTER
-  ========================= */
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const filteredResources = useMemo(() => {
-    let result = resources;
+  const [bookingModal, setBookingModal] = useState(null);
 
-    if (selectedCategory !== "ALL") {
-      result = result.filter(
-        (item) => item.type === selectedCategory
-      );
-    }
+  const [detailsModal, setDetailsModal] = useState(null);
 
-    if (search.trim()) {
-      const query = search.toLowerCase();
+  const [farmerInfo, setFarmerInfo] = useState({
+    name: "",
+    phone: "",
+  });
 
-      result = result.filter((item) =>
-        `${item.title} ${item.type} ${item.location} ${item.provider}`
-          .toLowerCase()
-          .includes(query)
-      );
-    }
+  const [bookingLoading, setBookingLoading] = useState(false);
 
-    if (minRating > 0) {
-      result = result.filter(
-        (item) => item.rating >= minRating
-      );
-    }
+  const [showAllResources, setShowAllResources] = useState(false);
 
-    return result;
-  }, [resources, selectedCategory, search, minRating]);
+  // -----------------------------
+  // CATEGORIES
+  // -----------------------------
 
-  const displayedResources = showAll
-    ? filteredResources
-    : filteredResources.slice(0, 3);
+  const categories = [
+    {
+      name: "Equipment",
+      icon: Tractor,
+    },
+    {
+      name: "Workers",
+      icon: UserCheck,
+    },
+    {
+      name: "Seeds",
+      icon: Sprout,
+    },
+    {
+      name: "Irrigation",
+      icon: Droplets,
+    },
+    {
+      name: "Fertilizer",
+      icon: FlaskConical,
+    },
+  ];
 
-  /* =========================
-     NAVIGATION
-  ========================= */
+  // -----------------------------
+  // GET USER LOCATION
+  // -----------------------------
 
-  const scrollTo = (id) => {
-    document
-      .getElementById(id)
-      ?.scrollIntoView({ behavior: "smooth" });
-
-    setMobileMenu(false);
-  };
-
-  /* =========================
-     CATEGORY
-  ========================= */
-
-  const selectCategory = (category) => {
-    setSelectedCategory(category);
-    scrollTo("resources");
-  };
-
-  /* =========================
-     CROP IMAGE
-  ========================= */
-
-  const handleCropImage = (event) => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    const imageUrl = URL.createObjectURL(file);
-
-    setCropImage(imageUrl);
-
-    setCropResult(null);
-
-    setTimeout(() => {
-      setCropResult({
-        disease: "Healthy / No Major Disease Detected",
-        confidence: "92%",
-        advice:
-          "Your crop appears healthy. Continue regular watering, sunlight, and monitoring.",
-      });
-    }, 1200);
-  };
-
-  /* =========================
-     ADD RESOURCE
-  ========================= */
-
-  const addResource = (event) => {
-    event.preventDefault();
-
-    if (
-      !newResource.title ||
-      !newResource.price ||
-      !newResource.location ||
-      !newResource.provider
-    ) {
-      alert("Please fill all fields.");
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      fetchResources();
       return;
     }
 
-    const item = {
-      id: Date.now(),
-      type: newResource.type,
-      title: newResource.title,
-      rating: 5.0,
-      distance: 0.5,
-      price: Number(newResource.price),
-      unit: "day",
-      location: newResource.location,
-      provider: newResource.provider,
-      image:
-        "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=900&q=80",
-    };
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
 
-    setResources((old) => [item, ...old]);
+        setUserLocation({
+          lat,
+          lng,
+        });
 
-    setNewResource({
-      title: "",
-      type: "EQUIPMENT",
-      price: "",
-      location: "",
-      provider: "",
+        setLocationName("Near you");
+
+        fetchResources();
+      },
+      () => {
+        // Location permission denied.
+        // Use default location.
+        setLocationName("Default location");
+        fetchResources();
+      }
+    );
+  }, []);
+
+  // -----------------------------
+  // LOAD RESOURCES FROM SUPABASE
+  // -----------------------------
+
+  async function fetchResources() {
+    setLoading(true);
+    setErrorMessage("");
+
+    const { data, error } = await supabase
+      .from("resources")
+      .select("*")
+      .eq("available", true)
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (error) {
+      console.error("Supabase error:", error);
+
+      setErrorMessage(
+        "Could not load resources. Please check your Supabase connection."
+      );
+
+      setResources([]);
+      setLoading(false);
+      return;
+    }
+
+    setResources(data || []);
+    setLoading(false);
+  }
+
+  // -----------------------------
+  // FILTER + DISTANCE
+  // -----------------------------
+
+  const filteredResources = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    const result = resources
+      .filter((resource) => {
+        const category = resource.category || "";
+
+        const matchesCategory =
+          selectedCategory === "All" ||
+          category.toLowerCase() === selectedCategory.toLowerCase();
+
+        const searchableText = `
+          ${resource.title || ""}
+          ${resource.category || ""}
+          ${resource.provider_name || ""}
+          ${resource.location || ""}
+        `.toLowerCase();
+
+        const matchesSearch =
+          query.length === 0 || searchableText.includes(query);
+
+        return matchesCategory && matchesSearch;
+      })
+      .map((resource) => {
+        let distance = null;
+
+        if (
+          resource.latitude !== null &&
+          resource.latitude !== undefined &&
+          resource.longitude !== null &&
+          resource.longitude !== undefined
+        ) {
+          distance = getDistanceKm(
+            userLocation.lat,
+            userLocation.lng,
+            Number(resource.latitude),
+            Number(resource.longitude)
+          );
+        }
+
+        return {
+          ...resource,
+          distance,
+        };
+      })
+      .sort((a, b) => {
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+
+        return Number(a.distance) - Number(b.distance);
+      });
+
+    return result;
+  }, [
+    resources,
+    searchQuery,
+    selectedCategory,
+    userLocation,
+  ]);
+
+  // -----------------------------
+  // CATEGORY COUNT
+  // -----------------------------
+
+  function getCategoryCount(category) {
+    return resources.filter(
+      (resource) =>
+        (resource.category || "").toLowerCase() ===
+        category.toLowerCase()
+    ).length;
+  }
+
+  // -----------------------------
+  // BOOKING
+  // -----------------------------
+
+  async function handleBooking(event) {
+    event.preventDefault();
+
+    if (!bookingModal) return;
+
+    if (!farmerInfo.name.trim() || !farmerInfo.phone.trim()) {
+      alert("Please enter your name and phone number.");
+      return;
+    }
+
+    setBookingLoading(true);
+
+    const { error } = await supabase.from("bookings").insert([
+      {
+        resource_id: bookingModal.id,
+        farmer_name: farmerInfo.name.trim(),
+        farmer_phone: farmerInfo.phone.trim(),
+      },
+    ]);
+
+    if (error) {
+      console.error("Booking error:", error);
+
+      alert(
+        "Booking failed. Please check your Supabase bookings table and RLS policies."
+      );
+
+      setBookingLoading(false);
+      return;
+    }
+
+    alert("Booking request sent successfully!");
+
+    setBookingLoading(false);
+
+    setBookingModal(null);
+
+    setFarmerInfo({
+      name: "",
+      phone: "",
     });
+  }
 
-    setShowAddResource(false);
+  // -----------------------------
+  // FIND RESOURCES BUTTON
+  // -----------------------------
 
-    alert("Resource listed successfully!");
-  };
+  function handleFindResources() {
+    const resourceSection = document.getElementById(
+      "resources-section"
+    );
+
+    if (resourceSection) {
+      resourceSection.scrollIntoView({
+        behavior: "smooth",
+      });
+    }
+  }
+
+  // -----------------------------
+  // RESET FILTERS
+  // -----------------------------
+
+  function resetFilters() {
+    setSearchQuery("");
+    setSelectedCategory("All");
+  }
+
+  // -----------------------------
+  // RESOURCE LIMIT
+  // -----------------------------
+
+  const visibleResources = showAllResources
+    ? filteredResources
+    : filteredResources.slice(0, 6);
 
   return (
-    <main className="min-h-screen bg-[#fbf9ed] text-[#123d31]">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
 
-      {/* =========================
-          SIDEBAR
-      ========================= */}
+      {/* =========================================================
+          HEADER
+      ========================================================= */}
 
-      <aside
-        className={`fixed left-0 top-0 z-50 flex h-screen w-[240px]
-        flex-col border-r border-[#ccebd8] bg-[#d9f8e4]
-        transition-transform duration-300
-        ${
-          mobileMenu
-            ? "translate-x-0"
-            : "-translate-x-full md:translate-x-0"
-        }`}
-      >
+      <header className="bg-emerald-800 text-white border-b border-emerald-700 sticky top-0 z-40">
 
-        {/* LOGO */}
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
 
-        <div className="flex items-center gap-3 px-7 py-7">
+          {/* LOGO */}
 
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#075c48] text-white">
-            <Leaf size={22} />
-          </div>
-
-          <span className="text-lg font-bold">
-            Agri-Connect
-          </span>
-
-        </div>
-
-        {/* NAVIGATION */}
-
-        <nav className="px-4">
-
-          <SidebarItem
-            icon={<LayoutDashboard size={18} />}
-            text="Dashboard"
-            active
-            onClick={() => scrollTo("dashboard")}
-          />
-
-          <SidebarItem
-            icon={<Store size={18} />}
-            text="Marketplace"
-            onClick={() => scrollTo("categories")}
-          />
-
-          <SidebarItem
-            icon={<Users size={18} />}
-            text="Community"
-            onClick={() =>
-              alert(
-                "Community feature: Connect with nearby farmers and agricultural experts."
-              )
-            }
-          />
-
-          <SidebarItem
-            icon={<CloudSun size={18} />}
-            text="Weather"
-            onClick={() =>
-              alert(
-                "Weather service will be connected to a live weather API."
-              )
-            }
-          />
-
-        </nav>
-
-        {/* BOTTOM */}
-
-        <div className="mt-auto px-4 pb-5">
-
-          <SidebarItem
-            icon={<Settings size={18} />}
-            text="Settings"
-            onClick={() => setShowSettings(true)}
-          />
-
-          <div className="mt-5 flex items-center gap-3 rounded-xl p-3">
-
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white">
-              <User size={18} />
+          <Link
+            href="/"
+            className="flex items-center gap-3"
+          >
+            <div className="bg-white text-emerald-800 font-bold w-9 h-9 rounded-lg flex items-center justify-center text-lg">
+              🌾
             </div>
 
-            <div className="min-w-0">
+            <span className="font-bold text-xl tracking-tight">
+              Agri-Connect
+            </span>
+          </Link>
 
-              <p className="text-sm font-semibold">
-                Farmer
-              </p>
+          {/* NAVIGATION */}
 
-              <p className="truncate text-xs text-gray-500">
-                farmer@agriconnect.com
-              </p>
+          <div className="hidden md:flex items-center gap-6 text-sm">
 
-            </div>
+            <button
+              onClick={handleFindResources}
+              className="text-emerald-100 hover:text-white transition"
+            >
+              Explore
+            </button>
+
+            <Link
+              href="/crop-assistant"
+              className="text-emerald-100 hover:text-white transition"
+            >
+              Crop Assistant
+            </Link>
+
+            <Link
+              href="/provider"
+              className="text-emerald-100 hover:text-white transition"
+            >
+              Add Resource
+            </Link>
 
           </div>
 
-        </div>
+          {/* USER */}
 
-      </aside>
+          <div className="flex items-center gap-3">
 
-      {/* MOBILE MENU BUTTON */}
-
-      <button
-        onClick={() => setMobileMenu(true)}
-        className="fixed left-4 top-4 z-40 rounded-lg bg-[#075c48] p-3 text-white md:hidden"
-      >
-        <Menu size={20} />
-      </button>
-
-      {/* =========================
-          MAIN
-      ========================= */}
-
-      <section className="ml-0 md:ml-[240px]">
-
-        {/* TOP BAR */}
-
-        <header className="flex min-h-[70px] items-center justify-between border-b border-[#dedbc8] bg-[#fffef5] px-5 py-3 md:px-7">
-
-          <div className="hidden text-sm text-gray-500 md:block">
-
-            Dashboard
-
-            <ChevronRight
-              size={15}
-              className="mx-2 inline"
-            />
-
-            <span className="font-semibold text-[#174f40]">
-              Resources
+            <span className="hidden sm:inline-block text-emerald-200 text-xs">
+              {locationName}
             </span>
 
+            <div className="flex items-center gap-2 bg-emerald-900/60 px-3 py-1.5 rounded-full border border-emerald-700">
+
+              <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold text-white">
+                F
+              </div>
+
+              <span className="font-medium text-xs hidden sm:block">
+                Farmer
+              </span>
+
+            </div>
+
           </div>
 
-          <div className="ml-auto flex items-center gap-4">
+        </div>
 
-            {/* SEARCH */}
+      </header>
 
-            <div className="hidden items-center rounded-full border border-gray-200 bg-white px-4 py-2 sm:flex">
 
-              <Search
-                size={17}
-                className="text-gray-400"
-              />
+      {/* =========================================================
+          HERO
+      ========================================================= */}
+
+      <section className="bg-gradient-to-b from-emerald-800 to-emerald-900 text-white py-12 px-4">
+
+        <div className="max-w-3xl mx-auto text-center">
+
+          <div className="inline-flex items-center gap-2 bg-emerald-700/50 border border-emerald-600 rounded-full px-3 py-1 text-xs text-emerald-100 mb-4">
+
+            <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+
+            Smart Agriculture Resource Platform
+
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight">
+
+            Empowering Every Farmer, Everywhere.
+
+          </h1>
+
+          <p className="text-emerald-100 text-sm sm:text-base max-w-xl mx-auto mt-4">
+
+            Find agricultural equipment, skilled workers, seeds,
+            irrigation solutions and other resources near you.
+
+          </p>
+
+
+          {/* SEARCH */}
+
+          <div className="bg-white rounded-xl p-2 max-w-2xl mx-auto shadow-lg flex flex-col sm:flex-row gap-2 mt-7">
+
+            <div className="flex-1 flex items-center gap-2 px-3 py-2 text-slate-700">
+
+              <Search className="w-5 h-5 text-slate-400" />
 
               <input
-                value={search}
+                type="text"
+                placeholder="Search equipment, seeds, workers..."
+                value={searchQuery}
                 onChange={(e) =>
-                  setSearch(e.target.value)
+                  setSearchQuery(e.target.value)
                 }
-                className="ml-2 w-[200px] bg-transparent text-sm outline-none"
-                placeholder="Search resources..."
+                className="w-full text-sm outline-none bg-transparent"
               />
 
             </div>
 
-            {/* NOTIFICATION */}
+            <div className="flex items-center gap-2 px-3 py-2 border-t sm:border-t-0 sm:border-l border-slate-200 text-slate-600 text-sm">
+
+              <MapPin className="w-4 h-4 text-emerald-600" />
+
+              <span>{locationName}</span>
+
+            </div>
 
             <button
-              onClick={() =>
-                setShowNotifications(
-                  !showNotifications
-                )
-              }
-              className="relative rounded-full p-2 hover:bg-gray-100"
+              onClick={handleFindResources}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors"
             >
-
-              <Bell size={20} />
-
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-
-            </button>
-
-            {/* USER */}
-
-            <button
-              onClick={() => setShowSettings(true)}
-              className="flex items-center gap-2"
-            >
-
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#cdebd9]">
-                <User size={18} />
-              </div>
-
-              <div className="hidden text-left md:block">
-
-                <p className="text-sm font-semibold">
-                  Farmer
-                </p>
-
-                <p className="text-[10px] text-gray-500">
-                  Premium User
-                </p>
-
-              </div>
-
+              Find Resources
             </button>
 
           </div>
-
-          {/* NOTIFICATION PANEL */}
-
-          {showNotifications && (
-            <div className="absolute right-7 top-[65px] z-50 w-[280px] rounded-xl border bg-white p-4 shadow-xl">
-
-              <div className="flex items-center justify-between">
-
-                <h3 className="font-bold">
-                  Notifications
-                </h3>
-
-                <button
-                  onClick={() =>
-                    setShowNotifications(false)
-                  }
-                >
-                  <X size={18} />
-                </button>
-
-              </div>
-
-              <div className="mt-4 rounded-lg bg-[#eef9f1] p-3 text-sm">
-                🌱 Welcome to AgriConnect!
-              </div>
-
-              <div className="mt-2 rounded-lg bg-[#eef9f1] p-3 text-sm">
-                🚜 New equipment listings are available.
-              </div>
-
-            </div>
-          )}
-
-        </header>
-
-        {/* CONTENT */}
-
-        <div
-          id="dashboard"
-          className="mx-auto max-w-[1200px] px-5 py-5 md:px-7"
-        >
-
-          {/* =========================
-              HERO
-          ========================= */}
-
-          <section
-            className="relative min-h-[360px] overflow-hidden rounded-2xl bg-cover bg-center"
-            style={{
-              backgroundImage:
-                "url('https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1600&q=85')",
-            }}
-          >
-
-            <div className="absolute inset-0 bg-black/30" />
-
-            <div className="relative z-10 max-w-[650px] px-7 pt-24 text-white md:px-9 md:pt-28">
-
-              <h1 className="font-serif text-4xl font-bold leading-tight md:text-5xl">
-
-                Empowering Every
-                <br />
-                Farmer, Everywhere.
-
-              </h1>
-
-              <p className="mt-4 max-w-[600px] text-base">
-
-                Connect with the best tools, seeds, and local
-                expertise to grow your harvest and community.
-
-              </p>
-
-            </div>
-
-            {/* HERO SEARCH */}
-
-            <div className="absolute bottom-5 left-1/2 flex w-[92%] -translate-x-1/2 flex-col overflow-hidden rounded-xl bg-white p-2 shadow-xl md:bottom-4 md:w-[85%] md:flex-row">
-
-              <div className="flex flex-1 items-center px-4">
-
-                <Search
-                  size={18}
-                  className="text-gray-400"
-                />
-
-                <input
-                  value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
-                  className="ml-3 w-full py-3 outline-none"
-                  placeholder="What are you looking for?"
-                />
-
-              </div>
-
-              <button
-                onClick={() =>
-                  alert(
-                    "Using Idukki, Kerala as your current search location."
-                  )
-                }
-                className="hidden items-center border-l px-5 md:flex"
-              >
-
-                <MapPin size={18} />
-
-                <span className="ml-2 text-sm">
-                  Idukki, Kerala
-                </span>
-
-              </button>
-
-              <button
-                onClick={() => scrollTo("resources")}
-                className="rounded-lg bg-[#075c48] px-7 py-3 font-semibold text-white hover:bg-[#064d3d]"
-              >
-                Find Resources
-              </button>
-
-            </div>
-
-          </section>
-
-          {/* =========================
-              CATEGORY
-          ========================= */}
-
-          <section
-            id="categories"
-            className="mt-16 md:mt-24"
-          >
-
-            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-
-              <div>
-
-                <h2 className="text-2xl font-bold">
-                  Explore by Category
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Browse high-quality listings curated
-                  for your needs
-                </p>
-
-              </div>
-
-              <button
-                onClick={() => {
-                  setSelectedCategory("ALL");
-                  setShowAll(true);
-                  scrollTo("resources");
-                }}
-                className="rounded-lg border border-[#57977e] px-4 py-2 text-sm font-medium hover:bg-[#e5f7eb]"
-              >
-                View All Categories
-              </button>
-
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-
-              {categories.map((category) => (
-
-                <button
-                  key={category.name}
-                  onClick={() =>
-                    selectCategory(category.name)
-                  }
-                  className={`overflow-hidden rounded-xl border bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
-                    selectedCategory === category.name
-                      ? "border-[#075c48] ring-2 ring-[#075c48]/20"
-                      : "border-gray-100"
-                  }`}
-                >
-
-                  <div className="flex h-[135px] items-center justify-center bg-[#f1f1f1] text-[#315f51]">
-                    {category.icon}
-                  </div>
-
-                  <div className="p-4">
-
-                    <h3 className="text-sm font-bold">
-                      {category.name}
-                    </h3>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      {category.count}
-                    </p>
-
-                  </div>
-
-                </button>
-
-              ))}
-
-            </div>
-
-          </section>
-
-          {/* =========================
-              CROP ASSISTANT
-          ========================= */}
-
-          <section
-            id="crop-assistant"
-            className="relative mt-7 overflow-hidden rounded-xl bg-[#315f3d]"
-          >
-
-            <img
-              src="https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=1400&q=80"
-              className="absolute inset-0 h-full w-full object-cover opacity-50"
-              alt="Crop"
-            />
-
-            <div className="absolute inset-0 bg-[#123d31]/50" />
-
-            <div className="relative z-10 px-7 py-8 text-white md:px-8">
-
-              <span className="rounded-full bg-[#d9f8e4] px-3 py-1 text-xs font-bold text-[#174f40]">
-                NEW FEATURE
-              </span>
-
-              <h2 className="mt-3 font-serif text-2xl font-bold">
-                Instant Crop Assistant
-              </h2>
-
-              <p className="mt-2 max-w-[500px] text-sm">
-                Upload a photo of your crop to diagnose
-                pests, diseases, or nutrient deficiencies.
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-
-                <button
-                  onClick={() =>
-                    fileInputRef.current?.click()
-                  }
-                  className="flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#174f40] hover:bg-gray-100"
-                >
-
-                  <Camera size={17} />
-
-                  Upload Photo
-
-                </button>
-
-                <button
-                  onClick={() =>
-                    setShowCropAssistant(true)
-                  }
-                  className="rounded-lg border border-white px-5 py-3 text-sm font-semibold hover:bg-white/10"
-                >
-                  Open Crop Assistant
-                </button>
-
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleCropImage}
-                className="hidden"
-              />
-
-            </div>
-
-          </section>
-
-          {/* =========================
-              RESOURCES
-          ========================= */}
-
-          <section
-            id="resources"
-            className="mt-7"
-          >
-
-            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-
-              <div>
-
-                <h2 className="text-2xl font-bold">
-                  Resources Near You
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Top rated listings available near you
-                </p>
-
-              </div>
-
-              <div className="flex gap-2">
-
-                {/* FILTER */}
-
-                <button
-                  onClick={() =>
-                    setShowFilter(!showFilter)
-                  }
-                  className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm hover:bg-gray-50"
-                >
-
-                  <SlidersHorizontal size={15} />
-
-                  Filter
-
-                </button>
-
-                {/* VIEW ALL */}
-
-                <button
-                  onClick={() => setShowAll(!showAll)}
-                  className="rounded-lg border bg-white px-4 py-2 text-sm hover:bg-gray-50"
-                >
-
-                  {showAll ? "Show Less" : "View All"}
-
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* FILTER PANEL */}
-
-            {showFilter && (
-
-              <div className="mb-5 rounded-xl border bg-white p-4 shadow-sm">
-
-                <div className="flex flex-wrap items-center gap-3">
-
-                  <span className="text-sm font-semibold">
-                    Minimum Rating:
-                  </span>
-
-                  {[0, 4, 4.5, 4.8].map((rating) => (
-
-                    <button
-                      key={rating}
-                      onClick={() =>
-                        setMinRating(rating)
-                      }
-                      className={`rounded-lg px-4 py-2 text-sm ${
-                        minRating === rating
-                          ? "bg-[#075c48] text-white"
-                          : "bg-gray-100"
-                      }`}
-                    >
-
-                      {rating === 0
-                        ? "All"
-                        : `${rating}+ ⭐`}
-
-                    </button>
-
-                  ))}
-
-                </div>
-
-              </div>
-
-            )}
-
-            {/* ACTIVE FILTER */}
-
-            {selectedCategory !== "ALL" && (
-
-              <div className="mb-4 flex items-center gap-2">
-
-                <span className="rounded-full bg-[#d9f8e4] px-3 py-1 text-xs font-semibold">
-                  {selectedCategory}
-                </span>
-
-                <button
-                  onClick={() =>
-                    setSelectedCategory("ALL")
-                  }
-                  className="text-xs underline"
-                >
-                  Clear
-                </button>
-
-              </div>
-
-            )}
-
-            {/* RESOURCE CARDS */}
-
-            {displayedResources.length === 0 ? (
-
-              <div className="rounded-xl bg-white p-10 text-center shadow-sm">
-
-                <Search
-                  size={40}
-                  className="mx-auto text-gray-400"
-                />
-
-                <h3 className="mt-3 font-bold">
-                  No resources found
-                </h3>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Try another search or category.
-                </p>
-
-              </div>
-
-            ) : (
-
-              <div className="grid gap-5 md:grid-cols-3">
-
-                {displayedResources.map((resource) => (
-
-                  <div
-                    key={resource.id}
-                    className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                  >
-
-                    <div className="relative h-[155px]">
-
-                      <img
-                        src={resource.image}
-                        alt={resource.title}
-                        className="h-full w-full object-cover"
-                      />
-
-                      <span className="absolute left-3 top-3 rounded-full bg-[#075c48] px-3 py-1 text-xs font-bold text-white">
-                        {resource.type}
-                      </span>
-
-                    </div>
-
-                    <div className="p-4">
-
-                      <div className="flex justify-between gap-2">
-
-                        <h3 className="font-bold">
-                          {resource.title}
-                        </h3>
-
-                        <span className="flex shrink-0 items-center gap-1 text-sm">
-
-                          <Star
-                            size={14}
-                            className="fill-current"
-                          />
-
-                          {resource.rating}
-
-                        </span>
-
-                      </div>
-
-                      <p className="mt-2 flex items-center gap-1 text-sm text-gray-500">
-
-                        <MapPin size={14} />
-
-                        {resource.location}
-
-                      </p>
-
-                      <p className="mt-1 text-xs text-gray-400">
-                        {resource.distance} km away
-                      </p>
-
-                      <p className="mt-4 text-lg font-bold">
-
-                        ₹{resource.price}
-
-                        <span className="text-sm font-normal text-gray-500">
-                          {" "}
-                          /{resource.unit}
-                        </span>
-
-                      </p>
-
-                      <button
-                        onClick={() =>
-                          setSelectedResource(resource)
-                        }
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#075c48] py-3 text-sm font-semibold text-white hover:bg-[#064d3d]"
-                      >
-
-                        View Details
-
-                        <ArrowRight size={16} />
-
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            )}
-
-          </section>
-
-          {/* =========================
-              LIST RESOURCE
-          ========================= */}
-
-          <section className="mt-7 overflow-hidden rounded-xl bg-[#e1f5e7]">
-
-            <div className="flex flex-col items-start justify-between gap-5 p-7 md:flex-row md:items-center">
-
-              <div>
-
-                <h2 className="text-xl font-bold">
-                  Have an agricultural resource?
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-600">
-                  List your equipment, seeds, workers or
-                  services on AgriConnect.
-                </p>
-
-              </div>
-
-              <button
-                onClick={() => setShowAddResource(true)}
-                className="flex items-center gap-2 rounded-lg bg-[#075c48] px-5 py-3 font-semibold text-white hover:bg-[#064d3d]"
-              >
-
-                <Plus size={18} />
-
-                List a Resource
-
-              </button>
-
-            </div>
-
-          </section>
-
-          {/* =========================
-              FEATURES
-          ========================= */}
-
-          <section className="mt-8 grid gap-5 border-y border-[#dedbc8] py-7 md:grid-cols-4">
-
-            <Feature
-              icon="✓"
-              title="Verified Listings"
-              text="Quality resources"
-            />
-
-            <Feature
-              icon="♙"
-              title="Active Community"
-              text="Local farmers"
-            />
-
-            <Feature
-              icon="⌂"
-              title="Expert Support"
-              text="Agricultural help"
-            />
-
-            <Feature
-              icon="♧"
-              title="Sustainable Growth"
-              text="Better farming"
-            />
-
-          </section>
-
-          {/* =========================
-              FOOTER
-          ========================= */}
-
-          <footer className="flex flex-col gap-5 py-7 md:flex-row md:items-center md:justify-between">
-
-            <button
-              onClick={() => scrollTo("dashboard")}
-              className="flex items-center gap-3"
-            >
-
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#075c48] text-white">
-
-                <Leaf size={18} />
-
-              </div>
-
-              <span className="font-bold">
-                Agri-Connect
-              </span>
-
-            </button>
-
-            <div className="flex flex-wrap gap-5 text-sm text-gray-600">
-
-              <button
-                onClick={() => scrollTo("dashboard")}
-                className="hover:text-[#075c48]"
-              >
-                Home
-              </button>
-
-              <button
-                onClick={() => scrollTo("resources")}
-                className="hover:text-[#075c48]"
-              >
-                Explore Resources
-              </button>
-
-              <button
-                onClick={() => scrollTo("crop-assistant")}
-                className="hover:text-[#075c48]"
-              >
-                Crop Assistant
-              </button>
-
-              <button
-                onClick={() => setShowAddResource(true)}
-                className="hover:text-[#075c48]"
-              >
-                List a Resource
-              </button>
-
-            </div>
-
-            <p className="text-xs text-gray-500">
-              © 2026 Agri-Connect
-            </p>
-
-          </footer>
 
         </div>
 
       </section>
 
-      {/* =========================
-          RESOURCE DETAILS MODAL
-      ========================= */}
 
-      {selectedResource && (
+      {/* =========================================================
+          MAIN
+      ========================================================= */}
 
-        <Modal
-          title="Resource Details"
-          onClose={() => setSelectedResource(null)}
-        >
+      <main className="max-w-6xl mx-auto px-4 py-8 space-y-10 flex-1 w-full">
 
-          <img
-            src={selectedResource.image}
-            alt={selectedResource.title}
-            className="h-48 w-full rounded-xl object-cover"
-          />
 
-          <div className="mt-5">
+        {/* =====================================================
+            CATEGORIES
+        ===================================================== */}
 
-            <span className="rounded-full bg-[#d9f8e4] px-3 py-1 text-xs font-bold text-[#075c48]">
-              {selectedResource.type}
-            </span>
+        <section>
 
-            <h2 className="mt-3 text-2xl font-bold">
-              {selectedResource.title}
-            </h2>
+          <div className="flex justify-between items-end mb-4">
 
-            <p className="mt-2 text-gray-500">
-              Provided by {selectedResource.provider}
-            </p>
+            <div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+              <h2 className="text-xl font-bold text-slate-900">
+                Explore by Category
+              </h2>
 
-              <InfoBox
-                label="Rating"
-                value={`⭐ ${selectedResource.rating}`}
-              />
-
-              <InfoBox
-                label="Location"
-                value={selectedResource.location}
-              />
-
-              <InfoBox
-                label="Distance"
-                value={`${selectedResource.distance} km`}
-              />
-
-              <InfoBox
-                label="Price"
-                value={`₹${selectedResource.price}/${selectedResource.unit}`}
-              />
+              <p className="text-xs text-slate-500 mt-1">
+                Browse resources based on your agricultural needs
+              </p>
 
             </div>
 
             <button
-              onClick={() => {
-                alert(
-                  `Booking request sent to ${selectedResource.provider}!`
-                );
-
-                setSelectedResource(null);
-              }}
-              className="mt-5 w-full rounded-lg bg-[#075c48] py-3 font-semibold text-white"
+              onClick={resetFilters}
+              className="text-xs font-semibold text-emerald-700 hover:underline"
             >
-              Request / Book Resource
+              View All
             </button>
 
           </div>
 
-        </Modal>
 
-      )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
 
-      {/* =========================
-          CROP ASSISTANT MODAL
-      ========================= */}
+            {categories.map((category) => {
 
-      {showCropAssistant && (
+              const Icon = category.icon;
 
-        <Modal
-          title="Crop Assistant"
-          onClose={() => setShowCropAssistant(false)}
-        >
+              const isSelected =
+                selectedCategory.toLowerCase() ===
+                category.name.toLowerCase();
 
-          <div className="rounded-xl bg-[#eef9f1] p-5 text-center">
+              const count = getCategoryCount(
+                category.name
+              );
 
-            {cropImage ? (
+              return (
+                <button
+                  key={category.name}
+                  onClick={() =>
+                    setSelectedCategory(
+                      isSelected
+                        ? "All"
+                        : category.name
+                    )
+                  }
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    isSelected
+                      ? "bg-emerald-50 border-emerald-600 ring-2 ring-emerald-600/20"
+                      : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-sm"
+                  }`}
+                >
 
-              <img
-                src={cropImage}
-                alt="Uploaded crop"
-                className="mx-auto max-h-64 rounded-xl object-contain"
-              />
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
+                      isSelected
+                        ? "bg-emerald-600 text-white"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
 
-            ) : (
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    {category.name}
+                  </h3>
 
-              <div className="py-10">
+                  <p className="text-xs text-slate-400">
+                    {count} Listings
+                  </p>
 
-                <Camera
-                  size={45}
-                  className="mx-auto text-[#075c48]"
-                />
-
-                <p className="mt-3 text-sm text-gray-500">
-                  Upload a crop image to start analysis.
-                </p>
-
-              </div>
-
-            )}
+                </button>
+              );
+            })}
 
           </div>
 
-          {cropResult && (
+        </section>
 
-            <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-5">
 
-              <div className="flex items-center gap-2 font-bold text-green-700">
+        {/* =====================================================
+            CROP ASSISTANT
+        ===================================================== */}
 
-                <CheckCircle size={20} />
+        <section className="bg-emerald-900 text-white rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-md">
 
-                Analysis Complete
+          <div className="absolute right-0 top-0 opacity-10 text-[150px]">
+            🌱
+          </div>
 
-              </div>
+          <div className="relative z-10 max-w-xl space-y-3">
 
-              <h3 className="mt-3 font-bold">
-                {cropResult.disease}
-              </h3>
+            <div className="inline-flex items-center gap-1.5 bg-emerald-800 border border-emerald-700 text-emerald-200 text-xs px-3 py-1 rounded-full font-semibold">
 
-              <p className="mt-1 text-sm">
-                Confidence: {cropResult.confidence}
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+
+              AI CROP ASSISTANT
+
+            </div>
+
+            <h2 className="text-2xl font-bold">
+              Instant Crop Assistant
+            </h2>
+
+            <p className="text-emerald-100 text-sm leading-relaxed">
+
+              Upload a photo of your crop and get assistance
+              identifying possible diseases and crop problems.
+
+            </p>
+
+            <div className="pt-2 flex flex-wrap gap-3">
+
+              <Link
+                href="/crop-assistant"
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors inline-flex items-center gap-2"
+              >
+                Upload Photo
+
+                <ArrowRight className="w-4 h-4" />
+
+              </Link>
+
+              <Link
+                href="/crop-assistant"
+                className="bg-emerald-800/80 hover:bg-emerald-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold border border-emerald-700 transition-colors"
+              >
+                Learn More
+              </Link>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* =====================================================
+            RESOURCES
+        ===================================================== */}
+
+        <section id="resources-section">
+
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+
+            <div>
+
+              <h2 className="text-xl font-bold text-slate-900">
+                Resources Near You
+              </h2>
+
+              <p className="text-xs text-slate-500 mt-1">
+                Find agricultural resources available in your area
               </p>
 
-              <p className="mt-3 text-sm text-gray-600">
-                {cropResult.advice}
+            </div>
+
+            <div className="flex gap-2">
+
+              <button
+                onClick={fetchResources}
+                className="text-xs font-semibold text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-1.5"
+              >
+
+                <RefreshCw className="w-3.5 h-3.5" />
+
+                Refresh
+
+              </button>
+
+              <button
+                onClick={resetFilters}
+                className="text-xs font-semibold text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-50"
+              >
+                Clear Filters
+              </button>
+
+            </div>
+
+          </div>
+
+
+          {/* LOADING */}
+
+          {loading && (
+
+            <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+
+              <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
+
+              <p className="text-sm text-slate-500 mt-3">
+                Loading resources...
               </p>
 
             </div>
 
           )}
 
-          <button
-            onClick={() =>
-              fileInputRef.current?.click()
-            }
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-[#075c48] py-3 font-semibold text-white"
-          >
 
-            <Upload size={18} />
+          {/* ERROR */}
 
-            Upload Crop Image
+          {!loading && errorMessage && (
 
-          </button>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
 
-        </Modal>
+              <p className="text-sm text-red-700">
+                {errorMessage}
+              </p>
 
-      )}
+              <button
+                onClick={fetchResources}
+                className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg text-sm"
+              >
+                Try Again
+              </button>
 
-      {/* =========================
-          ADD RESOURCE MODAL
-      ========================= */}
+            </div>
 
-      {showAddResource && (
+          )}
 
-        <Modal
-          title="List a Resource"
-          onClose={() => setShowAddResource(false)}
-        >
 
-          <form
-            onSubmit={addResource}
-            className="space-y-4"
-          >
+          {/* NO RESULTS */}
 
-            <Input
-              label="Resource Name"
-              value={newResource.title}
-              onChange={(value) =>
-                setNewResource({
-                  ...newResource,
-                  title: value,
-                })
-              }
-              placeholder="Example: Tractor Rental"
-            />
+          {!loading &&
+            !errorMessage &&
+            filteredResources.length === 0 && (
+
+              <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+
+                <Search className="w-10 h-10 text-slate-300 mx-auto" />
+
+                <h3 className="font-bold text-slate-800 mt-3">
+                  No resources found
+                </h3>
+
+                <p className="text-sm text-slate-500 mt-1">
+                  Try another search or category.
+                </p>
+
+                <button
+                  onClick={resetFilters}
+                  className="mt-4 text-sm font-semibold text-emerald-700"
+                >
+                  Clear filters
+                </button>
+
+              </div>
+
+            )}
+
+
+          {/* RESOURCE CARDS */}
+
+          {!loading &&
+            !errorMessage &&
+            visibleResources.length > 0 && (
+
+              <div className="grid gap-4 md:grid-cols-3 sm:grid-cols-2">
+
+                {visibleResources.map((item) => (
+
+                  <div
+                    key={item.id}
+                    className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow"
+                  >
+
+                    <div>
+
+                      <div className="flex justify-between items-start mb-2">
+
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                          {item.category || "Resource"}
+                        </span>
+
+                        <span className="flex items-center text-xs font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+
+                          <Star className="w-3 h-3 fill-current mr-0.5" />
+
+                          {item.rating || "4.8"}
+
+                        </span>
+
+                      </div>
+
+
+                      <h3 className="font-bold text-slate-900 text-base leading-snug">
+                        {item.title}
+                      </h3>
+
+
+                      <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+
+                        {item.location || "Location not specified"}
+
+                      </p>
+
+
+                      {item.provider_name && (
+
+                        <p className="text-xs text-slate-500 mt-1">
+
+                          Provider:{" "}
+
+                          <span className="font-medium text-slate-700">
+                            {item.provider_name}
+                          </span>
+
+                        </p>
+
+                      )}
+
+
+                      {item.distance !== null && (
+
+                        <p className="text-xs text-emerald-600 mt-1">
+
+                          {Number(item.distance).toFixed(1)} km away
+
+                        </p>
+
+                      )}
+
+                    </div>
+
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+
+                      <div>
+
+                        <span className="text-lg font-extrabold text-slate-900">
+                          ₹{item.price || 0}
+                        </span>
+
+                        {item.price_unit && (
+
+                          <span className="text-xs text-slate-400">
+                            /{item.price_unit}
+                          </span>
+
+                        )}
+
+                      </div>
+
+
+                      <button
+                        onClick={() =>
+                          setDetailsModal(item)
+                        }
+                        className="text-xs font-semibold text-slate-600 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50"
+                      >
+                        Details
+                      </button>
+
+                    </div>
+
+
+                    <button
+                      onClick={() =>
+                        setBookingModal(item)
+                      }
+                      className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-sm font-semibold transition"
+                    >
+                      Request / Book
+                    </button>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
+
+          {/* SHOW MORE */}
+
+          {!loading &&
+            filteredResources.length > 6 && (
+
+              <div className="text-center mt-6">
+
+                <button
+                  onClick={() =>
+                    setShowAllResources(
+                      !showAllResources
+                    )
+                  }
+                  className="text-sm font-semibold text-emerald-700 border border-emerald-200 px-5 py-2 rounded-lg hover:bg-emerald-50"
+                >
+                  {showAllResources
+                    ? "Show Less"
+                    : `View All ${filteredResources.length} Resources`}
+                </button>
+
+              </div>
+
+            )}
+
+        </section>
+
+
+        {/* =====================================================
+            ADD RESOURCE CTA
+        ===================================================== */}
+
+        <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-5">
+
+          <div className="flex items-center gap-4">
+
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+
+              <PlusCircle className="w-6 h-6" />
+
+            </div>
 
             <div>
 
-              <label className="mb-1 block text-sm font-semibold">
-                Category
-              </label>
+              <h3 className="font-bold text-slate-900">
+                Have an agricultural resource?
+              </h3>
 
-              <select
-                value={newResource.type}
-                onChange={(e) =>
-                  setNewResource({
-                    ...newResource,
-                    type: e.target.value,
-                  })
-                }
-                className="w-full rounded-lg border px-3 py-3 outline-none"
-              >
-
-                {categories.map((category) => (
-                  <option
-                    key={category.name}
-                    value={category.name}
-                  >
-                    {category.name}
-                  </option>
-                ))}
-
-              </select>
-
-            </div>
-
-            <Input
-              label="Price"
-              type="number"
-              value={newResource.price}
-              onChange={(value) =>
-                setNewResource({
-                  ...newResource,
-                  price: value,
-                })
-              }
-              placeholder="Example: 500"
-            />
-
-            <Input
-              label="Location"
-              value={newResource.location}
-              onChange={(value) =>
-                setNewResource({
-                  ...newResource,
-                  location: value,
-                })
-              }
-              placeholder="Example: Idukki, Kerala"
-            />
-
-            <Input
-              label="Provider Name"
-              value={newResource.provider}
-              onChange={(value) =>
-                setNewResource({
-                  ...newResource,
-                  provider: value,
-                })
-              }
-              placeholder="Your name / business"
-            />
-
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#075c48] py-3 font-semibold text-white"
-            >
-
-              <Plus size={18} />
-
-              Add Resource
-
-            </button>
-
-          </form>
-
-        </Modal>
-
-      )}
-
-      {/* =========================
-          SETTINGS MODAL
-      ========================= */}
-
-      {showSettings && (
-
-        <Modal
-          title="Settings"
-          onClose={() => setShowSettings(false)}
-        >
-
-          <div className="space-y-3">
-
-            <div className="rounded-xl bg-gray-50 p-4">
-
-              <p className="text-sm font-bold">
-                Account
-              </p>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Farmer Account
-              </p>
-
-            </div>
-
-            <div className="rounded-xl bg-gray-50 p-4">
-
-              <p className="text-sm font-bold">
-                Location
-              </p>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Idukki, Kerala
-              </p>
-
-            </div>
-
-            <div className="rounded-xl bg-gray-50 p-4">
-
-              <p className="text-sm font-bold">
-                Notifications
-              </p>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Notifications are enabled.
+              <p className="text-sm text-slate-500 mt-1">
+                Add your equipment, service or agricultural product.
               </p>
 
             </div>
 
           </div>
 
-        </Modal>
-
-      )}
-
-    </main>
-  );
-}
-
-/* =========================
-   SIDEBAR ITEM
-========================= */
-
-function SidebarItem({
-  icon,
-  text,
-  active,
-  onClick,
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`mb-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition ${
-        active
-          ? "bg-white font-semibold shadow-sm"
-          : "text-gray-600 hover:bg-white/70"
-      }`}
-    >
-
-      {icon}
-
-      <span>{text}</span>
-
-      {active && (
-        <ChevronRight
-          size={16}
-          className="ml-auto"
-        />
-      )}
-
-    </button>
-  );
-}
-
-/* =========================
-   MODAL
-========================= */
-
-function Modal({ title, children, onClose }) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-
-        <div className="flex items-center justify-between">
-
-          <h2 className="text-xl font-bold">
-            {title}
-          </h2>
-
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 hover:bg-gray-100"
+          <Link
+            href="/provider"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold"
           >
-            <X size={20} />
-          </button>
+            Add Resource
+          </Link>
+
+        </section>
+
+
+        {/* =====================================================
+            TRUST FEATURES
+        ===================================================== */}
+
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-t border-slate-200">
+
+          <div className="flex items-center gap-3">
+
+            <ShieldCheck className="w-8 h-8 text-emerald-700" />
+
+            <div>
+
+              <h4 className="font-bold text-xs text-slate-800">
+                Verified Listings
+              </h4>
+
+              <p className="text-[11px] text-slate-500">
+                Reliable resources
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div className="flex items-center gap-3">
+
+            <Users className="w-8 h-8 text-emerald-700" />
+
+            <div>
+
+              <h4 className="font-bold text-xs text-slate-800">
+                Farmer Community
+              </h4>
+
+              <p className="text-[11px] text-slate-500">
+                Connect locally
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div className="flex items-center gap-3">
+
+            <Headphones className="w-8 h-8 text-emerald-700" />
+
+            <div>
+
+              <h4 className="font-bold text-xs text-slate-800">
+                Expert Support
+              </h4>
+
+              <p className="text-[11px] text-slate-500">
+                Agricultural assistance
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div className="flex items-center gap-3">
+
+            <Leaf className="w-8 h-8 text-emerald-700" />
+
+            <div>
+
+              <h4 className="font-bold text-xs text-slate-800">
+                Sustainable Growth
+              </h4>
+
+              <p className="text-[11px] text-slate-500">
+                Better farming
+              </p>
+
+            </div>
+
+          </div>
+
+        </section>
+
+      </main>
+
+
+      {/* =========================================================
+          FOOTER
+      ========================================================= */}
+
+      <footer className="bg-slate-900 text-slate-400 text-xs py-8 px-4">
+
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+
+          <div className="flex items-center gap-2">
+
+            <span className="font-bold text-white text-sm">
+              Agri-Connect
+            </span>
+
+            <span>
+              © 2026 Agri-Connect
+            </span>
+
+          </div>
+
+          <div className="flex gap-6">
+
+            <Link
+              href="/"
+              className="hover:text-white"
+            >
+              Home
+            </Link>
+
+            <button
+              onClick={handleFindResources}
+              className="hover:text-white"
+            >
+              Explore Resources
+            </button>
+
+            <Link
+              href="/crop-assistant"
+              className="hover:text-white"
+            >
+              Crop Assistant
+            </Link>
+
+            <Link
+              href="/provider"
+              className="hover:text-white"
+            >
+              Add Resource
+            </Link>
+
+          </div>
 
         </div>
 
-        <div className="mt-5">
-          {children}
+      </footer>
+
+
+      {/* =========================================================
+          RESOURCE DETAILS MODAL
+      ========================================================= */}
+
+      {detailsModal && (
+
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+
+            <div className="bg-emerald-800 text-white p-5 flex justify-between items-start">
+
+              <div>
+
+                <p className="text-xs text-emerald-200 uppercase font-bold">
+                  {detailsModal.category}
+                </p>
+
+                <h3 className="text-xl font-bold mt-1">
+                  {detailsModal.title}
+                </h3>
+
+              </div>
+
+              <button
+                onClick={() =>
+                  setDetailsModal(null)
+                }
+                className="p-1 hover:bg-emerald-700 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
+
+
+            <div className="p-5 space-y-4">
+
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+
+                <MapPin className="w-4 h-4 text-emerald-600" />
+
+                {detailsModal.location ||
+                  "Location not specified"}
+
+              </div>
+
+
+              {detailsModal.provider_name && (
+
+                <div>
+
+                  <p className="text-xs text-slate-400">
+                    Provider
+                  </p>
+
+                  <p className="font-semibold text-slate-800">
+                    {detailsModal.provider_name}
+                  </p>
+
+                </div>
+
+              )}
+
+
+              <div className="flex items-center justify-between bg-slate-50 rounded-xl p-4">
+
+                <div>
+
+                  <p className="text-xs text-slate-400">
+                    Price
+                  </p>
+
+                  <p className="text-xl font-extrabold text-slate-900">
+                    ₹{detailsModal.price || 0}
+                  </p>
+
+                </div>
+
+
+                <div className="flex items-center gap-1 text-amber-600">
+
+                  <Star className="w-4 h-4 fill-current" />
+
+                  <span className="font-bold">
+                    {detailsModal.rating || "4.8"}
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <button
+                onClick={() => {
+                  setDetailsModal(null);
+                  setBookingModal(detailsModal);
+                }}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-semibold"
+              >
+                Request / Book
+              </button>
+
+            </div>
+
+          </div>
+
         </div>
 
-      </div>
+      )}
 
-    </div>
-  );
-}
 
-/* =========================
-   INPUT
-========================= */
+      {/* =========================================================
+          BOOKING MODAL
+      ========================================================= */}
 
-function Input({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}) {
-  return (
-    <div>
+      {bookingModal && (
 
-      <label className="mb-1 block text-sm font-semibold">
-        {label}
-      </label>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
 
-      <input
-        type={type}
-        value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
-        placeholder={placeholder}
-        className="w-full rounded-lg border px-3 py-3 outline-none focus:border-[#075c48]"
-      />
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
 
-    </div>
-  );
-}
+            <div className="flex items-start justify-between">
 
-/* =========================
-   INFO BOX
-========================= */
+              <div>
 
-function InfoBox({ label, value }) {
-  return (
-    <div className="rounded-lg bg-gray-50 p-3">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Request {bookingModal.title}
+                </h3>
 
-      <p className="text-xs text-gray-500">
-        {label}
-      </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Enter your details and the provider can contact you.
+                </p>
 
-      <p className="mt-1 text-sm font-semibold">
-        {value}
-      </p>
+              </div>
 
-    </div>
-  );
-}
+              <button
+                onClick={() =>
+                  setBookingModal(null)
+                }
+                className="p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
 
-/* =========================
-   FEATURE
-========================= */
+            </div>
 
-function Feature({ icon, title, text }) {
-  return (
-    <div className="flex items-center gap-3 px-4">
 
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e4f7e9] text-[#075c48]">
-        {icon}
-      </div>
+            <form
+              onSubmit={handleBooking}
+              className="mt-5 space-y-4"
+            >
 
-      <div>
+              {/* NAME */}
 
-        <p className="text-sm font-bold">
-          {title}
-        </p>
+              <div>
 
-        <p className="text-xs text-gray-500">
-          {text}
-        </p>
+                <label className="text-xs font-semibold text-slate-600">
+                  Your Name
+                </label>
 
-      </div>
+                <input
+                  type="text"
+                  required
+                  value={farmerInfo.name}
+                  onChange={(e) =>
+                    setFarmerInfo({
+                      ...farmerInfo,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full border border-slate-200 rounded-lg p-3 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Enter your name"
+                />
+
+              </div>
+
+
+              {/* PHONE */}
+
+              <div>
+
+                <label className="text-xs font-semibold text-slate-600">
+                  Phone Number
+                </label>
+
+                <input
+                  type="tel"
+                  required
+                  value={farmerInfo.phone}
+                  onChange={(e) =>
+                    setFarmerInfo({
+                      ...farmerInfo,
+                      phone: e.target.value,
+                    })
+                  }
+                  className="w-full border border-slate-200 rounded-lg p-3 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="+91 98765 43210"
+                />
+
+              </div>
+
+
+              {/* BUTTONS */}
+
+              <div className="flex gap-2 pt-2">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBookingModal(null)
+                  }
+                  className="flex-1 border border-slate-200 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  disabled={bookingLoading}
+                >
+                  Cancel
+                </button>
+
+
+                <button
+                  type="submit"
+                  disabled={bookingLoading}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                >
+
+                  {bookingLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Request"
+                  )}
+
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+
+      )}
 
     </div>
   );
