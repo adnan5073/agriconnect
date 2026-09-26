@@ -1,21 +1,21 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
 
-// Configure Inter font
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
 });
 
 export const metadata = {
-  title: 'AgriConnect - Smart Agricultural Resource Access Platform',
-  description: 'Connect with agricultural resources, equipment, workers, and AI crop diagnosis.',
+  title: 'Agri-Connect | Empowering Every Farmer, Everywhere',
+  description: 'Connect with tools, seeds, equipment, and local agricultural expertise.',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.className}>
-      <body className="antialiased font-sans">
+    <html lang="en" className={inter.variable}>
+      <body className={`${inter.className} antialiased bg-slate-50 text-slate-900`}>
         {children}
       </body>
     </html>
