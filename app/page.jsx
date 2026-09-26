@@ -217,7 +217,7 @@ export default function Home() {
             </Link>
 
             <Link
-              href="#resources"
+              href="/resources"
               className="hover:text-emerald-200"
             >
               Resources
