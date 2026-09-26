@@ -1,821 +1,133 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-
-import {
-  Search,
-  MapPin,
-  Star,
-  ShieldCheck,
-  Users,
-  Headphones,
-  Leaf,
-  Tractor,
-  UserCheck,
-  Sprout,
-  Droplets,
-  FlaskConical,
-  Sparkles,
-  ArrowRight,
-  X,
-  Phone,
-  CalendarCheck
-} from "lucide-react";
-
+import { Search, MapPin, Tractor, Users, Sprout, Droplets, FlaskConical, Star, Phone, X, Leaf, PlusCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getDistanceKm } from "@/lib/geo";
 
+const categories = [
+  ["All", Sprout], ["Equipment", Tractor], ["Workers", Users],
+  ["Seeds", Sprout], ["Irrigation", Droplets], ["Fertilizer", FlaskConical]
+];
+
 export default function Home() {
-  const [resources, setResources] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [resources,setResources]=useState([]);
+  const [query,setQuery]=useState("");
+  const [category,setCategory]=useState("All");
+  const [loading,setLoading]=useState(true);
+  const [coords,setCoords]=useState({lat:9.9312,lon:76.2673});
+  const [locationName,setLocationName]=useState("Kochi, Kerala");
+  const [selected,setSelected]=useState(null);
+  const [form,setForm]=useState({name:"",phone:""});
+  const [message,setMessage]=useState("");
 
-  const [userLocation, setUserLocation] = useState({
-    lat: 9.9312,
-    lng: 76.2673
-  });
-
-  const [locationName, setLocationName] = useState("Kochi, India");
-
-  const [bookingModal, setBookingModal] = useState(null);
-
-  const [farmerInfo, setFarmerInfo] = useState({
-    name: "",
-    phone: ""
-  });
-
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getUserLocation();
-    fetchResources();
-  }, []);
-
-  async function fetchResources() {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("resources")
-      .select("*")
-      .eq("available", true)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      alert("Unable to load resources.");
-    } else {
-      setResources(data || []);
+  useEffect(()=>{
+    loadResources();
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(p=>{
+        setCoords({lat:p.coords.latitude,lon:p.coords.longitude});
+        setLocationName("Your current location");
+      },()=>{});
     }
+  },[]);
 
+  async function loadResources(){
+    setLoading(true);
+    const {data,error}=await supabase.from("resources").select("*").eq("available",true).order("created_at",{ascending:false});
+    if(!error)setResources(data||[]);
     setLoading(false);
   }
 
-  function getUserLocation() {
-    if (!navigator.geolocation) {
-      return;
-    }
+  const filtered=useMemo(()=>resources
+    .filter(r=>category==="All"||r.category===category)
+    .filter(r=>`${r.title} ${r.description||""} ${r.location_text||""} ${r.provider_name}`.toLowerCase().includes(query.toLowerCase()))
+    .map(r=>({...r,distance:getDistanceKm(coords.lat,coords.lon,Number(r.latitude),Number(r.longitude))}))
+    .sort((a,b)=>a.distance-b.distance),[resources,query,category,coords]);
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-
-        setLocationName("Your current location");
-      },
-      () => {
-        console.log("Location permission denied.");
-      }
-    );
-  }
-
-  async function handleBooking(event) {
-    event.preventDefault();
-
-    if (!bookingModal) return;
-
-    const { error } = await supabase
-      .from("bookings")
-      .insert([
-        {
-          resource_id: bookingModal.id,
-          farmer_name: farmerInfo.name,
-          farmer_phone: farmerInfo.phone,
-          status: "pending"
-        }
-      ]);
-
-    if (error) {
-      console.error(error);
-      alert("Booking failed. Please try again.");
-      return;
-    }
-
-    alert("Booking request sent successfully!");
-
-    setBookingModal(null);
-
-    setFarmerInfo({
-      name: "",
-      phone: ""
+  async function book(e){
+    e.preventDefault();
+    const {error}=await supabase.from("bookings").insert({
+      resource_id:selected.id, farmer_name:form.name, farmer_phone:form.phone, status:"pending"
     });
+    setMessage(error?"Booking failed. Please try again.":"Booking request sent successfully!");
+    if(!error)setForm({name:"",phone:""});
   }
 
-  const categories = [
-    {
-      name: "Equipment",
-      count: "Machinery",
-      icon: Tractor
-    },
-    {
-      name: "Workers",
-      count: "Skilled workers",
-      icon: UserCheck
-    },
-    {
-      name: "Seeds",
-      count: "Quality seeds",
-      icon: Sprout
-    },
-    {
-      name: "Irrigation",
-      count: "Water solutions",
-      icon: Droplets
-    },
-    {
-      name: "Fertilizer",
-      count: "Farm inputs",
-      icon: FlaskConical
-    }
-  ];
+  return <main className="min-h-screen bg-slate-50">
+    <header className="sticky top-0 z-30 border-b bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="rounded-xl bg-green-600 p-2 text-white"><Leaf size={22}/></div>
+          <div><h1 className="text-xl font-bold text-green-700">AgriConnect</h1><p className="text-xs text-slate-500">Resources for every farmer</p></div>
+        </Link>
+        <nav className="flex gap-2">
+          <Link href="/crop-assistant" className="rounded-lg px-3 py-2 text-sm font-semibold text-green-700">Crop Assistant</Link>
+          <Link href="/provider" className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white"><PlusCircle size={17}/>Add Resource</Link>
+        </nav>
+      </div>
+    </header>
 
-  const filteredResources = resources
-    .filter((resource) => {
-      const matchesCategory =
-        selectedCategory === "All" ||
-        resource.category?.toLowerCase() ===
-          selectedCategory.toLowerCase();
-
-      const search =
-        searchQuery.trim().toLowerCase();
-
-      const matchesSearch =
-        !search ||
-        resource.title?.toLowerCase().includes(search) ||
-        resource.description?.toLowerCase().includes(search) ||
-        resource.category?.toLowerCase().includes(search) ||
-        resource.location_text?.toLowerCase().includes(search);
-
-      return matchesCategory && matchesSearch;
-    })
-    .map((resource) => ({
-      ...resource,
-      distance: getDistanceKm(
-        userLocation.lat,
-        userLocation.lng,
-        resource.latitude,
-        resource.longitude
-      )
-    }))
-    .sort((a, b) => a.distance - b.distance);
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-
-      {/* NAVBAR */}
-      <header className="bg-emerald-800 text-white sticky top-0 z-40 shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-
-          <Link
-            href="/"
-            className="flex items-center gap-3"
-          >
-            <div className="bg-white text-emerald-800 w-10 h-10 rounded-xl flex items-center justify-center text-xl">
-              🌾
-            </div>
-
-            <div>
-              <div className="font-bold text-xl">
-                AgriConnect
-              </div>
-
-              <div className="text-xs text-emerald-200">
-                Connecting farmers to resources
-              </div>
-            </div>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-
-            <Link
-              href="/"
-              className="hover:text-emerald-200"
-            >
-              Home
-            </Link>
-
-            <Link
-              href="/resources"
-              className="hover:text-emerald-200"
-            >
-              Resources
-            </Link>
-
-            <Link
-              href="/crop-assistant"
-              className="hover:text-emerald-200"
-            >
-              Crop Assistant
-            </Link>
-
-            <Link
-              href="/provider"
-              className="bg-white text-emerald-800 px-4 py-2 rounded-lg font-semibold hover:bg-emerald-50"
-            >
-              Become a Provider
-            </Link>
-
-          </nav>
+    <section className="bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 px-5 py-14 text-white">
+      <div className="mx-auto max-w-7xl">
+        <p className="font-semibold text-green-100">AGRICULTURAL RESOURCE PLATFORM</p>
+        <h2 className="mt-3 max-w-3xl text-4xl font-black md:text-6xl">Find the right resources near you.</h2>
+        <p className="mt-5 max-w-2xl text-lg text-green-50">Find equipment, skilled workers, seeds, irrigation, fertilizers and agricultural services.</p>
+        <div className="mt-8 flex max-w-3xl flex-col gap-3 rounded-2xl bg-white p-3 md:flex-row">
+          <div className="flex flex-1 items-center gap-3 px-3">
+            <Search className="text-slate-400" size={21}/>
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search tractor, seeds, workers..." className="w-full bg-transparent py-3 text-slate-800 outline-none"/>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700"><MapPin size={18}/>{locationName}</div>
         </div>
-      </header>
-
-      {/* HERO */}
-      <section className="bg-gradient-to-br from-emerald-800 to-emerald-950 text-white">
-
-        <div className="max-w-7xl mx-auto px-4 py-16">
-
-          <div className="max-w-3xl">
-
-            <div className="inline-flex items-center gap-2 bg-emerald-700/60 border border-emerald-600 rounded-full px-4 py-2 text-sm mb-5">
-              <Leaf className="w-4 h-4" />
-              Smart Agriculture Resource Platform
-            </div>
-
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-              Everything Farmers Need,
-              <span className="text-emerald-300">
-                {" "}Nearby.
-              </span>
-            </h1>
-
-            <p className="mt-5 text-emerald-100 text-lg leading-relaxed">
-              Find agricultural equipment, skilled workers,
-              seeds, fertilizers, irrigation solutions and
-              agricultural services in your area.
-            </p>
-
-            {/* SEARCH */}
-            <div className="mt-8 bg-white rounded-2xl p-2 flex flex-col sm:flex-row shadow-xl">
-
-              <div className="flex items-center flex-1 px-3">
-                <Search className="text-slate-400 w-5 h-5 mr-3" />
-
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) =>
-                    setSearchQuery(e.target.value)
-                  }
-                  placeholder="Search tractors, workers, seeds..."
-                  className="w-full py-3 outline-none text-slate-800"
-                />
-              </div>
-
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("resources")
-                    ?.scrollIntoView()
-                }
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-7 py-3 rounded-xl font-semibold"
-              >
-                Find Resources
-              </button>
-
-            </div>
-
-            <div className="flex items-center gap-2 mt-4 text-sm text-emerald-200">
-              <MapPin className="w-4 h-4" />
-              {locationName}
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* TRUST FEATURES */}
-      <section className="bg-white border-b">
-
-        <div className="max-w-7xl mx-auto px-4 py-7 grid grid-cols-2 md:grid-cols-4 gap-6">
-
-          <Feature
-            icon={<ShieldCheck />}
-            title="Verified Providers"
-            text="Trusted local resources"
-          />
-
-          <Feature
-            icon={<MapPin />}
-            title="Location Based"
-            text="Find resources nearby"
-          />
-
-          <Feature
-            icon={<Users />}
-            title="Farmer Focused"
-            text="Built for farmers"
-          />
-
-          <Feature
-            icon={<Headphones />}
-            title="Direct Contact"
-            text="Connect directly"
-          />
-
-        </div>
-      </section>
-
-      <main className="max-w-7xl mx-auto w-full px-4 py-10 space-y-12">
-
-        {/* CATEGORIES */}
-        <section>
-
-          <div className="flex justify-between items-end mb-5">
-
-            <div>
-              <p className="text-emerald-600 font-semibold text-sm">
-                EXPLORE
-              </p>
-
-              <h2 className="text-2xl font-bold text-slate-900">
-                Agricultural Resources
-              </h2>
-            </div>
-
-            <button
-              onClick={() => setSelectedCategory("All")}
-              className="text-sm text-emerald-700 font-semibold"
-            >
-              View All
-            </button>
-
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-
-            {categories.map((category) => {
-
-              const Icon = category.icon;
-
-              const selected =
-                selectedCategory === category.name;
-
-              return (
-                <button
-                  key={category.name}
-                  onClick={() =>
-                    setSelectedCategory(
-                      selected ? "All" : category.name
-                    )
-                  }
-                  className={`text-left p-5 rounded-2xl border transition ${
-                    selected
-                      ? "bg-emerald-50 border-emerald-500 shadow"
-                      : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow"
-                  }`}
-                >
-
-                  <div
-                    className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${
-                      selected
-                        ? "bg-emerald-600 text-white"
-                        : "bg-emerald-100 text-emerald-700"
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
-
-                  <h3 className="font-bold text-slate-800">
-                    {category.name}
-                  </h3>
-
-                  <p className="text-xs text-slate-500 mt-1">
-                    {category.count}
-                  </p>
-
-                </button>
-              );
-            })}
-
-          </div>
-        </section>
-
-        {/* AI BANNER */}
-        <section className="bg-emerald-900 text-white rounded-3xl p-7 md:p-10 overflow-hidden relative">
-
-          <div className="relative z-10 max-w-2xl">
-
-            <div className="inline-flex items-center gap-2 bg-emerald-800 border border-emerald-700 px-3 py-1 rounded-full text-xs font-semibold">
-              <Sparkles className="w-4 h-4 text-yellow-300" />
-              AI POWERED
-            </div>
-
-            <h2 className="text-3xl font-bold mt-4">
-              Instant Crop Assistant
-            </h2>
-
-            <p className="text-emerald-100 mt-3 leading-relaxed">
-              Upload a crop leaf image and get assistance
-              identifying possible diseases, pests and
-              nutrient-related problems.
-            </p>
-
-            <Link
-              href="/crop-assistant"
-              className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 mt-6 px-5 py-3 rounded-xl font-semibold"
-            >
-              Open Crop Assistant
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-
-          </div>
-
-          <div className="absolute right-8 bottom-0 text-[150px] opacity-10">
-            🌱
-          </div>
-
-        </section>
-
-        {/* RESOURCES */}
-        <section id="resources">
-
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-
-            <div>
-              <p className="text-emerald-600 font-semibold text-sm">
-                FIND WHAT YOU NEED
-              </p>
-
-              <h2 className="text-2xl font-bold">
-                Resources Near You
-              </h2>
-
-              <p className="text-sm text-slate-500 mt-1">
-                Sorted by distance from your location
-              </p>
-            </div>
-
-            <select
-              value={selectedCategory}
-              onChange={(e) =>
-                setSelectedCategory(e.target.value)
-              }
-              className="border border-slate-300 bg-white rounded-lg px-4 py-2 text-sm"
-            >
-              <option value="All">All Categories</option>
-              <option value="Equipment">Equipment</option>
-              <option value="Workers">Workers</option>
-              <option value="Seeds">Seeds</option>
-              <option value="Irrigation">Irrigation</option>
-              <option value="Fertilizer">Fertilizer</option>
-              <option value="Services">Services</option>
-            </select>
-
-          </div>
-
-          {loading ? (
-
-            <div className="bg-white rounded-2xl p-10 text-center">
-              <div className="text-emerald-600 font-semibold">
-                Loading resources...
-              </div>
-            </div>
-
-          ) : filteredResources.length === 0 ? (
-
-            <div className="bg-white border rounded-2xl p-10 text-center">
-
-              <div className="text-5xl mb-4">
-                🔎
-              </div>
-
-              <h3 className="font-bold text-lg">
-                No resources found
-              </h3>
-
-              <p className="text-sm text-slate-500 mt-2">
-                Try another search or category.
-              </p>
-
-            </div>
-
-          ) : (
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-              {filteredResources.map((resource) => (
-
-                <ResourceCard
-                  key={resource.id}
-                  resource={resource}
-                  onBook={() =>
-                    setBookingModal(resource)
-                  }
-                />
-
-              ))}
-
-            </div>
-
-          )}
-
-        </section>
-
-      </main>
-
-      {/* FOOTER */}
-      <footer className="bg-slate-950 text-slate-400 mt-auto">
-
-        <div className="max-w-7xl mx-auto px-4 py-10">
-
-          <div className="flex flex-col md:flex-row justify-between gap-8">
-
-            <div>
-
-              <div className="flex items-center gap-2 text-white font-bold text-xl">
-                🌾 AgriConnect
-              </div>
-
-              <p className="text-sm mt-3 max-w-md">
-                Helping farmers find the right agricultural
-                resources, services and information.
-              </p>
-
-            </div>
-
-            <div className="flex gap-8 text-sm">
-
-              <div className="space-y-2">
-                <div className="text-white font-semibold">
-                  Platform
-                </div>
-
-                <Link
-                  href="/"
-                  className="block hover:text-white"
-                >
-                  Resources
-                </Link>
-
-                <Link
-                  href="/crop-assistant"
-                  className="block hover:text-white"
-                >
-                  Crop Assistant
-                </Link>
-
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-white font-semibold">
-                  Providers
-                </div>
-
-                <Link
-                  href="/provider"
-                  className="block hover:text-white"
-                >
-                  Register
-                </Link>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          <div className="border-t border-slate-800 mt-8 pt-6 text-xs">
-            © 2026 AgriConnect. Hackathon Project.
-          </div>
-
-        </div>
-
-      </footer>
-
-      {/* BOOKING MODAL */}
-      {bookingModal && (
-
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
-
-            <div className="flex justify-between items-start p-6 border-b">
-
-              <div>
-                <h3 className="font-bold text-xl">
-                  Request Resource
-                </h3>
-
-                <p className="text-sm text-slate-500 mt-1">
-                  {bookingModal.title}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setBookingModal(null)}
-                className="text-slate-400 hover:text-slate-800"
-              >
-                <X />
-              </button>
-
-            </div>
-
-            <form
-              onSubmit={handleBooking}
-              className="p-6 space-y-4"
-            >
-
-              <div>
-                <label className="text-sm font-semibold">
-                  Your Name
-                </label>
-
-                <input
-                  required
-                  value={farmerInfo.name}
-                  onChange={(e) =>
-                    setFarmerInfo({
-                      ...farmerInfo,
-                      name: e.target.value
-                    })
-                  }
-                  placeholder="Enter your name"
-                  className="w-full border rounded-xl p-3 mt-2 outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold">
-                  Phone Number
-                </label>
-
-                <input
-                  required
-                  type="tel"
-                  value={farmerInfo.phone}
-                  onChange={(e) =>
-                    setFarmerInfo({
-                      ...farmerInfo,
-                      phone: e.target.value
-                    })
-                  }
-                  placeholder="+91 98765 43210"
-                  className="w-full border rounded-xl p-3 mt-2 outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="bg-slate-50 rounded-xl p-4 text-sm">
-
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-emerald-600" />
-                  Provider
-                </div>
-
-                <div className="font-semibold mt-1">
-                  {bookingModal.provider_name}
-                </div>
-
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
-              >
-                <CalendarCheck className="w-5 h-5" />
-                Send Booking Request
-              </button>
-
-            </form>
-
-          </div>
-
-        </div>
-
-      )}
-
-    </div>
-  );
-}
-
-function Feature({ icon, title, text }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="text-emerald-600">
-        {icon}
+      </div>
+    </section>
+
+    <section className="mx-auto max-w-7xl px-5 py-8">
+      <h3 className="text-2xl font-bold">Browse Resources</h3>
+      <div className="my-7 flex gap-2 overflow-x-auto pb-2">
+        {categories.map(([name,Icon])=><button key={name} onClick={()=>setCategory(name)} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${category===name?"bg-green-600 text-white":"bg-white text-slate-600 ring-1 ring-slate-200"}`}><Icon size={16}/>{name}</button>)}
       </div>
 
-      <div>
-        <h3 className="font-bold text-sm">
-          {title}
-        </h3>
-
-        <p className="text-xs text-slate-500">
-          {text}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ResourceCard({ resource, onBook }) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg transition">
-
-      <div className="h-36 bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
-
-        {resource.image_url ? (
-          <img
-            src={resource.image_url}
-            alt={resource.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="text-6xl">
-            {resource.category === "Equipment"
-              ? "🚜"
-              : resource.category === "Workers"
-              ? "👨‍🌾"
-              : resource.category === "Seeds"
-              ? "🌱"
-              : resource.category === "Irrigation"
-              ? "💧"
-              : resource.category === "Fertilizer"
-              ? "🌿"
-              : "🌾"}
-          </div>
-        )}
-
-      </div>
-
-      <div className="p-5">
-
-        <div className="flex justify-between gap-3">
-
-          <div>
-
-            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">
-              {resource.category}
-            </span>
-
-            <h3 className="font-bold text-lg mt-3">
-              {resource.title}
-            </h3>
-
-          </div>
-
-          <div className="flex items-center gap-1 text-sm">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            {resource.rating}
-          </div>
-
-        </div>
-
-        <p className="text-sm text-slate-500 mt-2 line-clamp-2">
-          {resource.description}
-        </p>
-
-        <div className="flex items-center gap-2 text-xs text-slate-500 mt-4">
-          <MapPin className="w-4 h-4" />
-          {resource.location_text || "Nearby"}
-          {" • "}
-          {resource.distance.toFixed(1)} km
-        </div>
-
-        <div className="border-t mt-4 pt-4 flex justify-between items-center">
-
-          <div>
-            <div className="font-bold text-emerald-700">
-              ₹{Number(resource.price).toLocaleString()}
+      {loading?<div className="rounded-2xl bg-white p-12 text-center">Loading resources...</div>:
+      filtered.length===0?<div className="rounded-2xl bg-white p-12 text-center"><Sprout className="mx-auto mb-3 text-green-500" size={40}/><b>No resources found</b></div>:
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{filtered.map(item=>
+        <article key={item.id} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+          <div className="flex h-36 items-center justify-center bg-green-50"><Tractor className="text-green-600" size={58}/></div>
+          <div className="p-5">
+            <div className="flex justify-between"><span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{item.category}</span><span className="flex items-center gap-1"><Star size={15} className="fill-yellow-400 text-yellow-400"/>{item.rating}</span></div>
+            <h4 className="mt-3 text-lg font-bold">{item.title}</h4>
+            <p className="mt-2 text-sm text-slate-500">{item.description}</p>
+            <div className="mt-4 space-y-2 text-sm text-slate-600">
+              <div className="flex items-center gap-2"><MapPin size={16}/>{item.location_text||"Nearby"} · {item.distance.toFixed(1)} km</div>
+              <div className="font-bold text-green-700">₹{item.price} / {item.price_unit}</div>
+              <div>Provider: {item.provider_name}</div>
             </div>
-
-            <div className="text-xs text-slate-400">
-              per {resource.price_unit}
-            </div>
+            <button onClick={()=>{setSelected(item);setMessage("")}} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-bold text-white"><Phone size={17}/>Book / Contact</button>
           </div>
+        </article>
+      )}</div>}
+    </section>
 
-          <button
-            onClick={onBook}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold"
-          >
-            Request
-          </button>
-
-        </div>
-
+    <section className="mx-auto max-w-7xl px-5 pb-12">
+      <div className="rounded-3xl bg-slate-900 p-7 text-white md:flex md:items-center md:justify-between">
+        <div><div className="flex items-center gap-2 text-green-400"><Leaf size={21}/><b>AI Crop Assistant</b></div><h3 className="mt-2 text-2xl font-black">Upload a crop leaf and get assistance.</h3><p className="mt-2 text-slate-300">Analyze a crop leaf image and receive disease-assistance information.</p></div>
+        <Link href="/crop-assistant" className="mt-5 rounded-xl bg-green-500 px-5 py-3 font-bold md:mt-0">Open Crop Assistant</Link>
       </div>
+    </section>
 
-    </div>
-  );
+    <footer className="border-t bg-white px-5 py-8 text-center text-sm text-slate-500"><b className="text-green-700">AgriConnect</b><p>Helping farmers access the right resources.</p></footer>
+
+    {selected&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6">
+        <div className="flex justify-between"><div><h3 className="text-xl font-bold">Book Resource</h3><p className="text-sm text-slate-500">{selected.title}</p></div><button onClick={()=>setSelected(null)}><X/></button></div>
+        <form onSubmit={book} className="mt-6 space-y-4">
+          <input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Your name" className="w-full rounded-xl border px-4 py-3"/>
+          <input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="Phone number" className="w-full rounded-xl border px-4 py-3"/>
+          {message&&<div className="rounded-xl bg-green-50 p-3 text-sm font-semibold text-green-700">{message}</div>}
+          <button className="w-full rounded-xl bg-green-600 py-3 font-bold text-white">Send Booking Request</button>
+        </form>
+      </div>
+    </div>}
+  </main>;
 }

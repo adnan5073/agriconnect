@@ -1,56 +1,14 @@
-import { NextResponse } from "next/server";
-
-export async function POST(request) {
-  try {
-    const formData = await request.formData();
-
-    const image = formData.get("image");
-
-    if (!(image instanceof File)) {
-      return NextResponse.json(
-        {
-          error: "Please upload an image."
-        },
-        {
-          status: 400
-        }
-      );
-    }
-
-    if (!image.type.startsWith("image/")) {
-      return NextResponse.json(
-        {
-          error: "Only image files are allowed."
-        },
-        {
-          status: 400
-        }
-      );
-    }
-
-    return NextResponse.json({
-      result:
-        "Possible crop problem\n\n" +
-        "The uploaded image may show signs of leaf disease, pest damage, or nutrient stress.\n\n" +
-        "Recommended next steps:\n" +
-        "• Check both sides of the leaf for pests.\n" +
-        "• Check whether nearby plants show similar symptoms.\n" +
-        "• Avoid applying chemicals without identifying the problem.\n" +
-        "• Compare the symptoms with trusted agricultural information.\n" +
-        "• Contact an agricultural expert for confirmation.\n\n" +
-        "Demo AI response: Connect a trained crop-disease model for live diagnosis."
-    });
-
-  } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        error: "Something went wrong while processing the image."
-      },
-      {
-        status: 500
-      }
-    );
-  }
+export async function POST(request){
+ try{
+  const data=await request.formData();
+  const image=data.get("image");
+  if(!image||typeof image==="string")return Response.json({error:"Please upload a crop leaf image."},{status:400});
+  if(!image.type.startsWith("image/"))return Response.json({error:"Only image files are supported."},{status:400});
+  return Response.json({
+   disease:"Demo Analysis: Possible Leaf Disease",
+   severity:"Needs inspection",
+   advice:"This is a demonstration response. Connect a trained crop-disease model for real diagnosis.",
+   note:"AgriConnect demo crop assistant"
+  });
+ }catch{return Response.json({error:"Unable to process the image."},{status:500});}
 }

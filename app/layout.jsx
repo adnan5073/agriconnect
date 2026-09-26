@@ -2,14 +2,9 @@ import "./globals.css";
 
 export const metadata = {
   title: "AgriConnect",
-  description:
-    "Agricultural resource discovery and crop assistance platform"
+  description: "Helping farmers access the right agricultural resources"
 };
 
 export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+  return <html lang="en"><body>{children}</body></html>;
 }
