@@ -37,6 +37,10 @@ import {
   Phone,
 } from "lucide-react";
 
+/* =========================================================
+   IMAGES
+========================================================= */
+
 const IMAGES = {
   hero:
     "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=85",
@@ -69,33 +73,46 @@ const IMAGES = {
     "https://images.unsplash.com/photo-1523742812070-1f2e3c3c6c0f?auto=format&fit=crop&w=900&q=80",
 };
 
+/* =========================================================
+   CATEGORIES
+========================================================= */
+
 const categories = [
   {
     name: "Equipment",
+    count: "124 Listings",
     icon: Tractor,
     image: IMAGES.equipment,
   },
   {
     name: "Workers",
+    count: "86 Listings",
     icon: UserCheck,
     image: IMAGES.workers,
   },
   {
     name: "Seeds",
+    count: "312 Listings",
     icon: Sprout,
     image: IMAGES.seeds,
   },
   {
     name: "Irrigation",
+    count: "45 Listings",
     icon: Droplets,
     image: IMAGES.irrigation,
   },
   {
     name: "Fertilizer",
+    count: "98 Listings",
     icon: FlaskConical,
     image: IMAGES.fertilizer,
   },
 ];
+
+/* =========================================================
+   SIDEBAR ITEM
+========================================================= */
 
 function SidebarItem({
   icon: Icon,
@@ -114,6 +131,7 @@ function SidebarItem({
       }`}
     >
       <Icon className="w-[18px] h-[18px]" />
+
       <span>{children}</span>
 
       {active && (
@@ -122,6 +140,10 @@ function SidebarItem({
     </button>
   );
 }
+
+/* =========================================================
+   LOADING CARD
+========================================================= */
 
 function ResourceSkeleton() {
   return (
@@ -137,6 +159,10 @@ function ResourceSkeleton() {
     </div>
   );
 }
+
+/* =========================================================
+   MAIN PAGE
+========================================================= */
 
 export default function Home() {
   const [resources, setResources] = useState([]);
@@ -158,40 +184,45 @@ export default function Home() {
 
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState("login");
+
   const [authName, setAuthName] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+
   const [authError, setAuthError] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [authSubmitting, setAuthSubmitting] = useState(false);
 
+  /* Default location = Kochi */
   const [userLocation, setUserLocation] = useState({
     lat: 9.9312,
     lng: 76.2673,
   });
 
+  /* =====================================================
+     INITIAL LOAD
+  ===================================================== */
+
   useEffect(() => {
     fetchResources();
     getLocation();
+    loadSession();
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
+  /* =====================================================
+     AUTH SESSION
+  ===================================================== */
 
-    async function loadSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  async function loadSession() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      if (mounted) {
-        setUser(session?.user ?? null);
-        setAuthLoading(false);
-      }
-    }
-
-    loadSession();
+    setUser(session?.user ?? null);
+    setAuthLoading(false);
 
     const {
       data: { subscription },
@@ -203,10 +234,13 @@ export default function Home() {
     );
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }
+
+  /* =====================================================
+     GET RESOURCES
+  ===================================================== */
 
   async function fetchResources(refresh = false) {
     if (refresh) {
@@ -223,7 +257,11 @@ export default function Home() {
         error: supabaseError,
       } = await supabase
         .from("resources")
-        .select("*");
+        .select("*")
+        .eq("available", true)
+        .order("created_at", {
+          ascending: false,
+        });
 
       if (supabaseError) {
         console.error(
@@ -257,6 +295,10 @@ export default function Home() {
     }
   }
 
+  /* =====================================================
+     GET USER LOCATION
+  ===================================================== */
+
   function getLocation() {
     if (!navigator.geolocation) {
       return;
@@ -283,10 +325,12 @@ export default function Home() {
     );
   }
 
+  /* =====================================================
+     FILTER + SEARCH + SORT
+  ===================================================== */
+
   const filteredResources = useMemo(() => {
-    const query = searchQuery
-      .trim()
-      .toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
 
     const filtered = resources
       .filter((resource) => {
@@ -375,6 +419,10 @@ export default function Home() {
     userLocation,
   ]);
 
+  /* =====================================================
+     FIND RESOURCES
+  ===================================================== */
+
   function handleFindResources() {
     document
       .getElementById("resources")
@@ -383,6 +431,10 @@ export default function Home() {
         block: "start",
       });
   }
+
+  /* =====================================================
+     AUTH
+  ===================================================== */
 
   function resetAuthForm() {
     setAuthName("");
@@ -413,7 +465,9 @@ export default function Home() {
 
     try {
       if (!authEmail.trim()) {
-        setAuthError("Please enter your email.");
+        setAuthError(
+          "Please enter your email."
+        );
         return;
       }
 
@@ -426,7 +480,9 @@ export default function Home() {
 
       if (authMode === "register") {
         if (authName.trim().length < 2) {
-          setAuthError("Please enter your name.");
+          setAuthError(
+            "Please enter your name."
+          );
           return;
         }
 
@@ -483,7 +539,10 @@ export default function Home() {
         setAuthMessage("");
       }, 700);
     } catch (err) {
-      console.error("AUTH ERROR:", err);
+      console.error(
+        "AUTH ERROR:",
+        err
+      );
 
       setAuthError(
         err?.message ||
@@ -507,6 +566,10 @@ export default function Home() {
     setUser(null);
   }
 
+  /* =====================================================
+     BOOK RESOURCE
+  ===================================================== */
+
   async function handleBooking(event) {
     event.preventDefault();
 
@@ -520,11 +583,8 @@ export default function Home() {
       return;
     }
 
-    const name =
-      farmerInfo.name.trim();
-
-    const phone =
-      farmerInfo.phone.trim();
+    const name = farmerInfo.name.trim();
+    const phone = farmerInfo.phone.trim();
 
     if (name.length < 2) {
       alert("Please enter your name.");
@@ -547,7 +607,8 @@ export default function Home() {
         .from("bookings")
         .insert([
           {
-            resource_id: selectedResource.id,
+            resource_id:
+              selectedResource.id,
             farmer_id: user.id,
             farmer_name: name,
             farmer_phone: phone,
@@ -592,11 +653,19 @@ export default function Home() {
     }
   }
 
+  /* =====================================================
+     CLEAR FILTERS
+  ===================================================== */
+
   function clearFilters() {
     setSearchQuery("");
     setSelectedCategory("All");
     setSortBy("distance");
   }
+
+  /* =====================================================
+     SIDEBAR
+  ===================================================== */
 
   const Sidebar = () => (
     <aside
@@ -695,41 +764,37 @@ export default function Home() {
             <User className="w-4 h-4" />
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-[#173e32] truncate">
-              {user?.user_metadata?.full_name ||
-                user?.email?.split("@")[0] ||
-                "Farmer"}
+              {user
+                ? user.user_metadata?.full_name ||
+                  user.email
+                : "Guest"}
             </p>
 
             <p className="text-[10px] text-[#608174] truncate">
-              {user?.email || "Not signed in"}
+              {user?.email ||
+                "Login to your account"}
             </p>
           </div>
 
-          {user ? (
+          {user && (
             <button
               type="button"
               onClick={handleLogout}
-              className="ml-auto"
               title="Logout"
-              aria-label="Logout"
             >
               <LogOut className="w-4 h-4 text-[#688579]" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={openLogin}
-              className="ml-auto text-[10px] font-bold text-[#075d45]"
-            >
-              Login
             </button>
           )}
         </div>
       </div>
     </aside>
   );
+
+  /* =====================================================
+     PAGE
+  ===================================================== */
 
   return (
     <div
@@ -749,6 +814,8 @@ export default function Home() {
         )}
 
         <main className="flex-1 min-w-0">
+          {/* HEADER */}
+
           <header className="h-[58px] border-b border-[#e7e2cc] bg-[#fffdf0]/95 backdrop-blur sticky top-0 z-30">
             <div className="h-full px-4 sm:px-6 lg:px-7 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -809,55 +876,43 @@ export default function Home() {
                   aria-label="Notifications"
                 >
                   <Bell className="w-[18px] h-[18px] text-[#49675c]" />
+
                   <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border border-[#fffdf0]" />
                 </button>
 
-                <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-[#e0dccb]">
-                  {authLoading ? (
-                    <div className="w-8 h-8 rounded-full bg-[#d5eee0] animate-pulse" />
-                  ) : user ? (
-                    <>
-                      <div className="w-8 h-8 rounded-full bg-[#d5eee0] flex items-center justify-center">
-                        <User className="w-4 h-4 text-[#17634d]" />
-                      </div>
+                {user ? (
+                  <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-[#e0dccb]">
+                    <div className="w-8 h-8 rounded-full bg-[#d5eee0] flex items-center justify-center">
+                      <User className="w-4 h-4 text-[#17634d]" />
+                    </div>
 
-                      <div>
-                        <p className="text-xs font-bold text-[#294b3e]">
-                          {user.user_metadata?.full_name ||
-                            user.email?.split("@")[0] ||
-                            "Farmer"}
-                        </p>
+                    <div>
+                      <p className="text-xs font-bold text-[#294b3e]">
+                        {user.user_metadata?.full_name ||
+                          "Farmer"}
+                      </p>
 
-                        <p className="text-[9px] text-[#8a968f]">
-                          Farmer
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="ml-1"
-                        title="Logout"
-                        aria-label="Logout"
-                      >
-                        <LogOut className="w-4 h-4 text-[#688579]" />
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={openLogin}
-                      className="bg-[#075d45] hover:bg-[#064c3a] text-white px-4 py-2 rounded-lg text-xs font-bold"
-                    >
-                      Login
-                    </button>
-                  )}
-                </div>
+                      <p className="text-[9px] text-[#8a968f]">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openLogin}
+                    className="text-xs font-bold text-[#075d45] hover:underline"
+                  >
+                    Login
+                  </button>
+                )}
               </div>
             </div>
           </header>
 
           <div className="px-4 sm:px-6 lg:px-7 py-4 lg:py-5 max-w-[1200px] mx-auto">
+            {/* HERO */}
+
             <section className="relative h-[310px] sm:h-[350px] rounded-xl overflow-hidden shadow-sm">
               <img
                 src={IMAGES.hero}
@@ -920,6 +975,8 @@ export default function Home() {
               </div>
             </section>
 
+            {/* CATEGORIES */}
+
             <section className="mt-12">
               <div className="flex items-end justify-between mb-4">
                 <div>
@@ -981,14 +1038,7 @@ export default function Home() {
                         </p>
 
                         <p className="text-[10px] text-[#8b968f] mt-1">
-                          {resources.filter(
-                            (resource) =>
-                              String(
-                                resource.category || ""
-                              ).toLowerCase() ===
-                              category.name.toLowerCase()
-                          ).length}{" "}
-                          Listings
+                          {category.count}
                         </p>
                       </div>
                     </button>
@@ -996,6 +1046,8 @@ export default function Home() {
                 })}
               </div>
             </section>
+
+            {/* CROP ASSISTANT */}
 
             <section className="relative mt-7 h-[190px] sm:h-[200px] rounded-xl overflow-hidden">
               <img
@@ -1040,6 +1092,8 @@ export default function Home() {
                 </div>
               </div>
             </section>
+
+            {/* RESOURCES */}
 
             <section
               id="resources"
@@ -1125,6 +1179,8 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Mobile search */}
+
               <div className="md:hidden flex items-center bg-white border border-[#ddd9c8] rounded-lg px-3 mb-4">
                 <Search className="w-4 h-4 text-[#89948d]" />
 
@@ -1139,6 +1195,8 @@ export default function Home() {
                   className="w-full px-2 py-2.5 outline-none text-xs"
                 />
               </div>
+
+              {/* Error */}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
@@ -1156,6 +1214,8 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Loading */}
+
               {loading && (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   <ResourceSkeleton />
@@ -1163,6 +1223,8 @@ export default function Home() {
                   <ResourceSkeleton />
                 </div>
               )}
+
+              {/* Empty */}
 
               {!loading &&
                 filteredResources.length ===
@@ -1188,6 +1250,8 @@ export default function Home() {
                     </button>
                   </div>
                 )}
+
+              {/* Resource cards */}
 
               {!loading &&
                 filteredResources.length >
@@ -1315,6 +1379,8 @@ export default function Home() {
                 )}
             </section>
 
+            {/* FEATURES */}
+
             <section className="grid grid-cols-2 md:grid-cols-4 gap-5 border-t border-b border-[#e7e2cc] py-7 mt-10">
               <Feature
                 icon={ShieldCheck}
@@ -1325,13 +1391,13 @@ export default function Home() {
               <Feature
                 icon={Users}
                 title="Active Community"
-                text="Connect with local farmers"
+                text="5,000+ local farmers"
               />
 
               <Feature
                 icon={Headphones}
                 title="Expert Support"
-                text="Help when you need it"
+                text="Available 24/7"
               />
 
               <Feature
@@ -1340,6 +1406,8 @@ export default function Home() {
                 text="Eco-friendly focus"
               />
             </section>
+
+            {/* FOOTER */}
 
             <footer className="py-7 flex flex-col md:flex-row justify-between items-center gap-5">
               <div className="flex items-center gap-2">
@@ -1352,7 +1420,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="flex gap-6 text-[10px] text-[#687c72]">
+              <div className="flex flex-wrap justify-center gap-6 text-[10px] text-[#687c72]">
                 <Link
                   href="/"
                   className="hover:text-[#075d45]"
@@ -1381,6 +1449,15 @@ export default function Home() {
                 >
                   List a Resource
                 </Link>
+
+                {/* ADMIN LOGIN */}
+
+                <Link
+                  href="/admin/login"
+                  className="text-[#89948d] hover:text-[#075d45] transition-colors"
+                >
+                  Admin Login
+                </Link>
               </div>
 
               <p className="text-[9px] text-[#9aa39e]">
@@ -1391,9 +1468,13 @@ export default function Home() {
         </main>
       </div>
 
+      {/* =====================================================
+          AUTH MODAL
+      ===================================================== */}
+
       {showAuthModal && (
         <div
-          className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(event) => {
             if (
               event.target ===
@@ -1403,119 +1484,100 @@ export default function Home() {
             }
           }}
         >
-          <div className="w-full max-w-md bg-[#fffdf5] rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-[#d9f7df] px-6 py-6 relative">
+          <div className="bg-[#fffdf5] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-[#d5eee0] px-6 py-5 flex items-center justify-between">
+              <div>
+                <h2 className="font-serif text-xl font-bold text-[#173e32]">
+                  {authMode === "login"
+                    ? "Welcome Back"
+                    : "Create Account"}
+                </h2>
+
+                <p className="text-xs text-[#60796e] mt-1">
+                  {authMode === "login"
+                    ? "Login to continue to AgriConnect"
+                    : "Join the AgriConnect community"}
+                </p>
+              </div>
+
               <button
                 type="button"
                 onClick={() =>
                   setShowAuthModal(false)
                 }
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-                aria-label="Close authentication"
+                className="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
               >
-                <X className="w-4 h-4 text-[#315446]" />
+                <X className="w-4 h-4" />
               </button>
-
-              <div className="w-11 h-11 rounded-xl bg-[#075d45] text-white flex items-center justify-center">
-                <Leaf className="w-6 h-6" />
-              </div>
-
-              <h2 className="font-serif text-2xl font-bold text-[#173e32] mt-4">
-                {authMode === "login"
-                  ? "Welcome Back"
-                  : "Join Agri-Connect"}
-              </h2>
-
-              <p className="text-xs text-[#547164] mt-1">
-                {authMode === "login"
-                  ? "Login to book resources and manage your requests."
-                  : "Create your farmer account to access Agri-Connect."}
-              </p>
             </div>
 
             <form
               onSubmit={handleAuthSubmit}
               className="p-6 space-y-4"
             >
-              {authMode === "register" && (
-                <div>
-                  <label className="block text-[10px] font-bold text-[#315446] mb-1.5">
-                    Full Name
-                  </label>
-
-                  <input
-                    type="text"
-                    value={authName}
-                    onChange={(event) =>
-                      setAuthName(
-                        event.target.value
-                      )
-                    }
-                    placeholder="Enter your name"
-                    autoComplete="name"
-                    className="w-full h-11 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[10px] font-bold text-[#315446] mb-1.5">
-                  Email
-                </label>
-
-                <input
-                  type="email"
-                  value={authEmail}
-                  onChange={(event) =>
-                    setAuthEmail(
-                      event.target.value
-                    )
-                  }
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  className="w-full h-11 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-[#315446] mb-1.5">
-                  Password
-                </label>
-
-                <input
-                  type="password"
-                  value={authPassword}
-                  onChange={(event) =>
-                    setAuthPassword(
-                      event.target.value
-                    )
-                  }
-                  placeholder="At least 6 characters"
-                  autoComplete={
-                    authMode === "login"
-                      ? "current-password"
-                      : "new-password"
-                  }
-                  className="w-full h-11 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
-                />
-              </div>
-
               {authError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs">
                   {authError}
                 </div>
               )}
 
               {authMessage && (
-                <div className="rounded-lg border border-[#bfe2c7] bg-[#edf9ef] px-3 py-2.5 text-xs text-[#17634d]">
+                <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2 text-xs">
                   {authMessage}
                 </div>
               )}
 
+              {authMode === "register" && (
+                <input
+                  type="text"
+                  value={authName}
+                  onChange={(event) =>
+                    setAuthName(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Full name"
+                  autoComplete="name"
+                  className="w-full h-10 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
+                />
+              )}
+
+              <input
+                required
+                type="email"
+                value={authEmail}
+                onChange={(event) =>
+                  setAuthEmail(
+                    event.target.value
+                  )
+                }
+                placeholder="Email address"
+                autoComplete="email"
+                className="w-full h-10 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
+              />
+
+              <input
+                required
+                type="password"
+                value={authPassword}
+                onChange={(event) =>
+                  setAuthPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Password"
+                autoComplete={
+                  authMode === "login"
+                    ? "current-password"
+                    : "new-password"
+                }
+                className="w-full h-10 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
+              />
+
               <button
                 type="submit"
                 disabled={authSubmitting}
-                className="w-full h-11 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full h-10 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {authSubmitting ? (
                   <>
@@ -1561,6 +1623,10 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* =====================================================
+          BOOKING MODAL
+      ===================================================== */}
 
       {selectedResource && (
         <div
@@ -1742,6 +1808,10 @@ export default function Home() {
     </div>
   );
 }
+
+/* =========================================================
+   FEATURE COMPONENT
+========================================================= */
 
 function Feature({
   icon: Icon,
