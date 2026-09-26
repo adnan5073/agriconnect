@@ -486,81 +486,82 @@ export default function Home() {
   ===================================================== */
 
   async function handleBooking(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    if (!selectedResource) return;
-
-    const name =
-      farmerInfo.name.trim();
-
-    const phone =
-      farmerInfo.phone.trim();
-
-    if (name.length < 2) {
-      alert("Please enter your name.");
-      return;
-    }
-
-    if (phone.length < 10) {
-      alert(
-        "Please enter a valid phone number."
-      );
-      return;
-    }
-
-    setBookingLoading(true);
-
-    try {
-      const {
-        error: bookingError,
-      } = await supabase
-        .from("bookings")
-        .insert([
-          {
-            resource_id:
-              selectedResource.id,
-            farmer_name: name,
-            farmer_phone: phone,
-            status: "pending",
-          },
-        ]);
-
-      if (bookingError) {
-        console.error(
-          "Booking error:",
-          bookingError
-        );
-
-        alert(
-          "Booking failed. Please try again."
-        );
-
-        return;
-      }
-
-      alert(
-        "Booking request sent successfully!"
-      );
-
-      setSelectedResource(null);
-
-      setFarmerInfo({
-        name: "",
-        phone: "",
-      });
-    } catch (err) {
-      console.error(
-        "Unexpected booking error:",
-        err
-      );
-
-      alert(
-        "Something went wrong while sending your booking."
-      );
-    } finally {
-      setBookingLoading(false);
-    }
+  if (!selectedResource?.id) {
+    alert("Resource ID is missing.");
+    return;
   }
+
+  const farmerName = farmerInfo.name.trim();
+  const farmerPhone = farmerInfo.phone.trim();
+
+  if (farmerName.length < 2) {
+    alert("Please enter your name.");
+    return;
+  }
+
+  if (farmerPhone.replace(/\D/g, "").length < 10) {
+    alert("Please enter a valid phone number.");
+    return;
+  }
+
+  setBookingLoading(true);
+
+  try {
+    const bookingResult = await supabase
+      .from("bookings")
+      .insert([
+        {
+          resource_id: selectedResource.id,
+          farmer_name: farmerName,
+          farmer_phone: farmerPhone,
+          status: "pending",
+        },
+      ]);
+
+    if (bookingResult.error) {
+      console.error(
+        "BOOKING ERROR:",
+        bookingResult.error
+      );
+
+      alert(
+        `Booking failed:\n\n${bookingResult.error.message}`
+      );
+
+      return;
+    }
+
+    console.log("BOOKING SUCCESS");
+
+    alert(
+      "✅ Booking request submitted successfully!"
+    );
+
+    setSelectedResource(null);
+
+    setFarmerInfo({
+      name: "",
+      phone: "",
+    });
+
+  } catch (bookingException) {
+    console.error(
+      "UNEXPECTED BOOKING ERROR:",
+      bookingException
+    );
+
+    alert(
+      `Something went wrong:\n\n${
+        bookingException.message || bookingException
+      }`
+    );
+
+  } finally {
+    setBookingLoading(false);
+  }
+}
 
   /* =====================================================
      CLEAR FILTERS
