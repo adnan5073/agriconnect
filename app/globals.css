@@ -1,10 +1,8 @@
 @import "tailwindcss";
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,Helvetica,sans-serif}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer}
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+/* =========================================================
+   BASE
+========================================================= */
 
 html {
   scroll-behavior: smooth;
@@ -12,10 +10,174 @@ html {
 
 body {
   margin: 0;
-  font-family: "DM Sans", sans-serif;
+  padding: 0;
   background: #fffdf0;
+  color: #173e32;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-.font-serif {
-  font-family: "Playfair Display", serif;
+/* =========================================================
+   SELECTION
+========================================================= */
+
+::selection {
+  background: #bde8c9;
+  color: #075d45;
+}
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f4f2e5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #a9cbb5;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #075d45;
+}
+
+/* =========================================================
+   FLOATING BACKGROUND
+========================================================= */
+
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  25% {
+    transform: translate3d(20px, -15px, 0)
+      scale(1.04);
+  }
+
+  50% {
+    transform: translate3d(35px, 25px, 0)
+      scale(1.08);
+  }
+
+  75% {
+    transform: translate3d(-10px, 30px, 0)
+      scale(1.04);
+  }
+}
+
+@keyframes floatReverse {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  25% {
+    transform: translate3d(-20px, 15px, 0)
+      scale(1.04);
+  }
+
+  50% {
+    transform: translate3d(-30px, -25px, 0)
+      scale(1.1);
+  }
+
+  75% {
+    transform: translate3d(15px, -30px, 0)
+      scale(1.04);
+  }
+}
+
+@keyframes pulseSlow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.7;
+    transform: scale(1.12);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 12s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 15s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 10s ease-in-out infinite;
+}
+
+/* =========================================================
+   HERO CINEMATIC ZOOM
+========================================================= */
+
+@keyframes heroZoom {
+  0%,
+  100% {
+    transform: scale(1.05);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.animate-hero-zoom {
+  animation: heroZoom 18s ease-in-out infinite;
+}
+
+/* =========================================================
+   IMAGE LOADING
+========================================================= */
+
+img {
+  max-width: 100%;
+}
+
+img {
+  image-rendering: auto;
+}
+
+/* =========================================================
+   FOCUS
+========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid #177254;
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

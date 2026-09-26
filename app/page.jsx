@@ -49,29 +49,84 @@ const IMAGES = {
     "https://images.unsplash.com/photo-1512428813834-c702c7702b78?auto=format&fit=crop&w=1400&q=85",
 
   equipment:
-    "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=700&q=80",
+    "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=900&q=85",
 
   workers:
-    "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=700&q=80",
+    "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=85",
 
   seeds:
-    "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=700&q=80",
+    "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=900&q=85",
 
   irrigation:
-    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=700&q=80",
+    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=85",
 
   fertilizer:
-    "https://images.unsplash.com/photo-1598512752271-33f400b7c9c4?auto=format&fit=crop&w=700&q=80",
+    "https://images.unsplash.com/photo-1598512752271-33f400b7c9c4?auto=format&fit=crop&w=900&q=85",
 
-  resource1:
-    "https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=900&q=80",
+  tractor:
+    "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=900&q=85",
 
-  resource2:
-    "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?auto=format&fit=crop&w=900&q=80",
+  harvester:
+    "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=85",
 
-  resource3:
-    "https://images.unsplash.com/photo-1523742812070-1f2e3c3c6c0f?auto=format&fit=crop&w=900&q=80",
+  seedResource:
+    "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=900&q=85",
+
+  irrigationResource:
+    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=85",
+
+  fertilizerResource:
+    "https://images.unsplash.com/photo-1598512752271-33f400b7c9c4?auto=format&fit=crop&w=900&q=85",
 };
+
+/* =========================================================
+   RESOURCE IMAGE HELPER
+========================================================= */
+
+function getResourceImage(resource) {
+  if (resource?.image_url) {
+    return resource.image_url;
+  }
+
+  const category = String(resource?.category || "").toLowerCase();
+  const title = String(resource?.title || "").toLowerCase();
+
+  if (
+    category.includes("equipment") ||
+    title.includes("tractor") ||
+    title.includes("harvester") ||
+    title.includes("machine")
+  ) {
+    return IMAGES.tractor;
+  }
+
+  if (
+    category.includes("worker") ||
+    category.includes("labour") ||
+    category.includes("labor")
+  ) {
+    return IMAGES.workers;
+  }
+
+  if (category.includes("seed")) {
+    return IMAGES.seedResource;
+  }
+
+  if (
+    category.includes("irrigation") ||
+    title.includes("pump") ||
+    title.includes("drip") ||
+    title.includes("sprinkler")
+  ) {
+    return IMAGES.irrigationResource;
+  }
+
+  if (category.includes("fertilizer")) {
+    return IMAGES.fertilizerResource;
+  }
+
+  return IMAGES.hero;
+}
 
 /* =========================================================
    CATEGORIES
@@ -80,31 +135,26 @@ const IMAGES = {
 const categories = [
   {
     name: "Equipment",
-    count: "124 Listings",
     icon: Tractor,
     image: IMAGES.equipment,
   },
   {
     name: "Workers",
-    count: "86 Listings",
     icon: UserCheck,
     image: IMAGES.workers,
   },
   {
     name: "Seeds",
-    count: "312 Listings",
     icon: Sprout,
     image: IMAGES.seeds,
   },
   {
     name: "Irrigation",
-    count: "45 Listings",
     icon: Droplets,
     image: IMAGES.irrigation,
   },
   {
     name: "Fertilizer",
-    count: "98 Listings",
     icon: FlaskConical,
     image: IMAGES.fertilizer,
   },
@@ -147,8 +197,8 @@ function SidebarItem({
 
 function ResourceSkeleton() {
   return (
-    <div className="bg-white rounded-xl overflow-hidden border border-[#e7e2cc] animate-pulse">
-      <div className="h-44 bg-[#e8e6d8]" />
+    <div className="bg-white rounded-2xl overflow-hidden border border-[#e7e2cc] shadow-sm animate-pulse">
+      <div className="h-48 bg-[#e8e6d8]" />
 
       <div className="p-4 space-y-3">
         <div className="h-4 bg-[#e8e6d8] rounded w-3/4" />
@@ -166,23 +216,14 @@ function ResourceSkeleton() {
 
 export default function Home() {
   const [resources, setResources] = useState([]);
-
   const [searchQuery, setSearchQuery] = useState("");
-
   const [selectedCategory, setSelectedCategory] =
     useState("All");
-
   const [sortBy, setSortBy] = useState("distance");
-
   const [loading, setLoading] = useState(true);
-
   const [refreshing, setRefreshing] = useState(false);
-
   const [error, setError] = useState("");
-
-  const [mobileSidebar, setMobileSidebar] =
-    useState(false);
-
+  const [mobileSidebar, setMobileSidebar] = useState(false);
   const [selectedResource, setSelectedResource] =
     useState(null);
 
@@ -194,11 +235,13 @@ export default function Home() {
   const [bookingLoading, setBookingLoading] =
     useState(false);
 
-  /* Default location = Kochi */
   const [userLocation, setUserLocation] = useState({
     lat: 9.9312,
     lng: 76.2673,
   });
+
+  const [locationName, setLocationName] =
+    useState("Your location");
 
   /* =====================================================
      INITIAL LOAD
@@ -223,40 +266,51 @@ export default function Home() {
     setError("");
 
     try {
+      if (!supabase) {
+        throw new Error(
+          "Supabase is not configured. Check your environment variables."
+        );
+      }
+
       const {
         data,
         error: supabaseError,
       } = await supabase
         .from("resources")
-        .select("*")
-        .eq("available", true)
-        .order("created_at", {
-          ascending: false,
-        });
+        .select("*");
 
       if (supabaseError) {
+        const errorMessage =
+          supabaseError?.message ||
+          String(supabaseError) ||
+          "Unknown Supabase error";
+
+        const errorDetails = [
+          `Message: ${supabaseError?.message || "N/A"}`,
+          `Code: ${supabaseError?.code || "N/A"}`,
+          `Details: ${supabaseError?.details || "N/A"}`,
+          `Hint: ${supabaseError?.hint || "N/A"}`,
+        ].join(" | ");
+
         console.error(
-          "Supabase resource error:",
-          supabaseError
+          "SUPABASE RESOURCE ERROR:",
+          errorDetails
         );
 
-        setError(
-          "Unable to load resources from the database."
-        );
-
+        setError(errorMessage);
         setResources([]);
         return;
       }
 
-      setResources(data || []);
+      console.log("SUPABASE RESOURCES:", data);
+
+      setResources(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error(
-        "Unexpected resource error:",
-        err
-      );
+      console.error("RESOURCE FETCH ERROR:", err);
 
       setError(
-        "Something went wrong while loading resources."
+        err?.message ||
+          "Something went wrong while loading resources."
       );
 
       setResources([]);
@@ -272,6 +326,7 @@ export default function Home() {
 
   function getLocation() {
     if (!navigator.geolocation) {
+      setLocationName("Location unavailable");
       return;
     }
 
@@ -281,12 +336,16 @@ export default function Home() {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
+
+        setLocationName("Current location");
       },
       (locationError) => {
         console.log(
           "Location unavailable:",
           locationError.message
         );
+
+        setLocationName("Location unavailable");
       },
       {
         enableHighAccuracy: true,
@@ -358,7 +417,6 @@ export default function Home() {
         };
       });
 
-    /* Nearest */
     if (sortBy === "distance") {
       filtered.sort((a, b) => {
         if (a.distance == null) return 1;
@@ -368,7 +426,6 @@ export default function Home() {
       });
     }
 
-    /* Highest rating */
     if (sortBy === "rating") {
       filtered.sort(
         (a, b) =>
@@ -377,7 +434,6 @@ export default function Home() {
       );
     }
 
-    /* Lowest price */
     if (sortBy === "price") {
       filtered.sort(
         (a, b) =>
@@ -396,7 +452,24 @@ export default function Home() {
   ]);
 
   /* =====================================================
-     FIND RESOURCES BUTTON
+     CATEGORY COUNTS
+  ===================================================== */
+
+  const categoryCounts = useMemo(() => {
+    return resources.reduce((counts, resource) => {
+      const category = resource.category;
+
+      if (category) {
+        counts[category] =
+          (counts[category] || 0) + 1;
+      }
+
+      return counts;
+    }, {});
+  }, [resources]);
+
+  /* =====================================================
+     FIND RESOURCES
   ===================================================== */
 
   function handleFindResources() {
@@ -415,9 +488,7 @@ export default function Home() {
   async function handleBooking(event) {
     event.preventDefault();
 
-    if (!selectedResource) {
-      return;
-    }
+    if (!selectedResource) return;
 
     const name =
       farmerInfo.name.trim();
@@ -513,13 +584,12 @@ export default function Home() {
           : "-translate-x-full lg:translate-x-0"
       }`}
     >
-      {/* Logo */}
       <div className="px-5 pt-5 pb-7">
         <Link
           href="/"
           className="flex items-center gap-3"
         >
-          <div className="w-9 h-9 rounded-lg bg-[#075d45] text-white flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-[#075d45] text-white flex items-center justify-center shadow-md">
             <Leaf className="w-5 h-5" />
           </div>
 
@@ -529,7 +599,6 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Navigation */}
       <nav className="px-3 space-y-1">
         <SidebarItem
           icon={Grid2X2}
@@ -585,7 +654,6 @@ export default function Home() {
         </SidebarItem>
       </nav>
 
-      {/* Bottom */}
       <div className="mt-auto px-3 pb-5">
         <SidebarItem
           icon={Settings}
@@ -601,17 +669,17 @@ export default function Home() {
         <div className="border-t border-[#bde1c5] my-4" />
 
         <div className="flex items-center gap-3 px-2">
-          <div className="w-9 h-9 rounded-full bg-[#075d45] text-white flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-[#075d45] text-white flex items-center justify-center shadow">
             <User className="w-4 h-4" />
           </div>
 
           <div className="min-w-0">
             <p className="text-xs font-bold text-[#173e32] truncate">
-              Farmer
+              User
             </p>
 
             <p className="text-[10px] text-[#608174] truncate">
-              farmer@agri-connect.com
+              Signed in user
             </p>
           </div>
 
@@ -628,15 +696,26 @@ export default function Home() {
   return (
     <div
       id="home"
-      className="min-h-screen bg-[#fffdf0] text-[#173e32]"
+      className="relative min-h-screen bg-[#fffdf0] text-[#173e32] overflow-hidden"
     >
-      <div className="flex">
+      {/* Animated background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#b9e8c5]/30 rounded-full blur-3xl animate-float-slow" />
+
+        <div className="absolute top-[35%] -right-40 w-[420px] h-[420px] bg-[#d9efb8]/25 rounded-full blur-3xl animate-float-reverse" />
+
+        <div className="absolute bottom-[-150px] left-[35%] w-[380px] h-[380px] bg-[#c7ead7]/25 rounded-full blur-3xl animate-pulse-slow" />
+
+        <div className="absolute top-[70%] left-[-120px] w-[280px] h-[280px] bg-[#e7f3c8]/20 rounded-full blur-3xl animate-float-slow" />
+      </div>
+
+      <div className="relative z-10 flex">
         <Sidebar />
 
         {/* Mobile overlay */}
         {mobileSidebar && (
           <div
-            className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/30 z-40 lg:hidden backdrop-blur-[2px]"
             onClick={() =>
               setMobileSidebar(false)
             }
@@ -645,10 +724,10 @@ export default function Home() {
 
         <main className="flex-1 min-w-0">
           {/* =================================================
-              TOP HEADER
+              HEADER
           ================================================= */}
 
-          <header className="h-[58px] border-b border-[#e7e2cc] bg-[#fffdf0]/95 backdrop-blur sticky top-0 z-30">
+          <header className="h-[58px] border-b border-[#e7e2cc] bg-[#fffdf0]/90 backdrop-blur-xl sticky top-0 z-30">
             <div className="h-full px-4 sm:px-6 lg:px-7 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
@@ -675,8 +754,7 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-4">
-                {/* Desktop search */}
-                <div className="hidden md:flex items-center w-[250px] h-8 bg-white border border-[#ddd9c8] rounded-full px-3">
+                <div className="hidden md:flex items-center w-[250px] h-8 bg-white/90 border border-[#ddd9c8] rounded-full px-3 shadow-sm">
                   <Search className="w-3.5 h-3.5 text-[#89948d]" />
 
                   <input
@@ -710,7 +788,7 @@ export default function Home() {
                 >
                   <Bell className="w-[18px] h-[18px] text-[#49675c]" />
 
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border border-[#fffdf0]" />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border border-[#fffdf0] animate-pulse" />
                 </button>
 
                 <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-[#e0dccb]">
@@ -720,7 +798,7 @@ export default function Home() {
 
                   <div>
                     <p className="text-xs font-bold text-[#294b3e]">
-                      Farmer
+                      User
                     </p>
 
                     <p className="text-[9px] text-[#8a968f]">
@@ -737,17 +815,23 @@ export default function Home() {
                 HERO
             ================================================= */}
 
-            <section className="relative h-[310px] sm:h-[350px] rounded-xl overflow-hidden shadow-sm">
+            <section className="relative h-[310px] sm:h-[350px] rounded-2xl overflow-hidden shadow-lg group">
               <img
                 src={IMAGES.hero}
                 alt="Agricultural farm"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover scale-105 animate-hero-zoom"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-black/5" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/25 to-black/5" />
+
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_30%,white_0,transparent_30%)]" />
 
               <div className="relative z-10 h-full flex flex-col justify-center px-7 sm:px-10 max-w-[600px]">
-                <h1 className="font-serif text-white text-3xl sm:text-4xl lg:text-[43px] leading-[1.08] font-bold">
+                <span className="w-fit px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white text-[9px] font-bold tracking-widest uppercase mb-4">
+                  Smart Agriculture Platform
+                </span>
+
+                <h1 className="font-serif text-white text-3xl sm:text-4xl lg:text-[43px] leading-[1.08] font-bold drop-shadow-lg">
                   Empowering Every
                   <br />
                   Farmer, Everywhere.
@@ -762,7 +846,7 @@ export default function Home() {
 
               {/* Search */}
               <div className="absolute left-1/2 -translate-x-1/2 bottom-[-1px] w-[90%] max-w-[680px]">
-                <div className="bg-white rounded-xl shadow-xl p-1.5 flex flex-col sm:flex-row gap-1">
+                <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl p-1.5 flex flex-col sm:flex-row gap-1 border border-white/50">
                   <div className="flex-1 flex items-center gap-2 px-3 h-10">
                     <Search className="w-4 h-4 text-[#89948d]" />
 
@@ -786,13 +870,13 @@ export default function Home() {
 
                   <div className="hidden sm:flex items-center gap-2 px-4 border-l border-[#e6e2d4] text-xs text-[#51685e]">
                     <MapPin className="w-3.5 h-3.5 text-[#187154]" />
-                    Kochi, India
+                    {locationName}
                   </div>
 
                   <button
                     type="button"
                     onClick={handleFindResources}
-                    className="h-10 px-6 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold transition-colors"
+                    className="h-10 px-6 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold transition-all hover:shadow-lg hover:-translate-y-0.5"
                   >
                     Find Resources
                   </button>
@@ -812,8 +896,8 @@ export default function Home() {
                   </h2>
 
                   <p className="text-xs text-[#7e8b84] mt-1">
-                    Browse high-quality listings
-                    curated for your needs
+                    Browse agricultural resources
+                    available for your needs
                   </p>
                 </div>
 
@@ -822,7 +906,7 @@ export default function Home() {
                   onClick={() =>
                     setSelectedCategory("All")
                   }
-                  className="hidden sm:block border border-[#759b89] text-[#356c57] px-3 py-1.5 rounded-lg text-[10px] font-semibold hover:bg-[#edf7ed]"
+                  className="hidden sm:block border border-[#759b89] text-[#356c57] px-3 py-1.5 rounded-lg text-[10px] font-semibold hover:bg-[#edf7ed] transition-all"
                 >
                   View All Categories
                 </button>
@@ -845,18 +929,24 @@ export default function Home() {
                             : category.name
                         )
                       }
-                      className={`group text-left bg-white rounded-xl overflow-hidden border transition-all ${
+                      className={`group text-left bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden border transition-all duration-300 ${
                         selected
-                          ? "border-[#177254] ring-2 ring-[#177254]/15 shadow-md"
-                          : "border-[#ebe7d7] hover:border-[#b4cdbd] hover:shadow-md"
+                          ? "border-[#177254] ring-2 ring-[#177254]/15 shadow-lg -translate-y-1"
+                          : "border-[#ebe7d7] hover:border-[#b4cdbd] hover:shadow-lg hover:-translate-y-1"
                       }`}
                     >
-                      <div className="h-[110px] overflow-hidden bg-[#eef0e9]">
+                      <div className="h-[120px] overflow-hidden bg-[#eef0e9] relative">
                         <img
                           src={category.image}
                           alt={category.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         />
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+                        <div className="absolute bottom-2 left-2 w-7 h-7 rounded-lg bg-white/90 backdrop-blur-sm flex items-center justify-center shadow">
+                          <category.icon className="w-4 h-4 text-[#075d45]" />
+                        </div>
                       </div>
 
                       <div className="p-3">
@@ -865,7 +955,10 @@ export default function Home() {
                         </p>
 
                         <p className="text-[10px] text-[#8b968f] mt-1">
-                          {category.count}
+                          {categoryCounts[
+                            category.name
+                          ] || 0}{" "}
+                          Listings
                         </p>
                       </div>
                     </button>
@@ -878,17 +971,17 @@ export default function Home() {
                 CROP ASSISTANT
             ================================================= */}
 
-            <section className="relative mt-7 h-[190px] sm:h-[200px] rounded-xl overflow-hidden">
+            <section className="relative mt-7 h-[190px] sm:h-[200px] rounded-2xl overflow-hidden shadow-md group">
               <img
                 src={IMAGES.cropAssistant}
                 alt="Crop assistant"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1200ms]"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-r from-[#173e32]/90 via-[#173e32]/65 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#173e32]/95 via-[#173e32]/65 to-transparent" />
 
               <div className="relative z-10 h-full flex flex-col justify-center px-6 sm:px-8 max-w-[600px]">
-                <div className="inline-flex w-fit items-center gap-1.5 bg-white/90 text-[#17634d] px-2.5 py-1 rounded-full text-[9px] font-bold">
+                <div className="inline-flex w-fit items-center gap-1.5 bg-white/90 text-[#17634d] px-2.5 py-1 rounded-full text-[9px] font-bold shadow">
                   <Sparkles className="w-3 h-3" />
                   NEW FEATURE
                 </div>
@@ -906,7 +999,7 @@ export default function Home() {
                 <div className="flex gap-2 mt-4">
                   <Link
                     href="/crop-assistant"
-                    className="inline-flex items-center gap-2 bg-white text-[#075d45] px-4 py-2 rounded-lg text-[10px] font-bold hover:bg-[#f5f5e9]"
+                    className="inline-flex items-center gap-2 bg-white text-[#075d45] px-4 py-2 rounded-lg text-[10px] font-bold hover:bg-[#f5f5e9] hover:-translate-y-0.5 transition-all shadow"
                   >
                     <Camera className="w-3.5 h-3.5" />
                     Upload Photo
@@ -914,7 +1007,7 @@ export default function Home() {
 
                   <Link
                     href="/crop-assistant"
-                    className="inline-flex items-center gap-2 border border-white/60 text-white px-4 py-2 rounded-lg text-[10px] font-bold hover:bg-white/10"
+                    className="inline-flex items-center gap-2 border border-white/60 text-white px-4 py-2 rounded-lg text-[10px] font-bold hover:bg-white/10 transition-all"
                   >
                     Learn More
                   </Link>
@@ -937,13 +1030,12 @@ export default function Home() {
                   </h2>
 
                   <p className="text-xs text-[#7e8b84] mt-1">
-                    Top rated listings available
-                    near you
+                    Agricultural listings from
+                    your marketplace
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Sort */}
                   <select
                     value={sortBy}
                     onChange={(event) =>
@@ -951,7 +1043,7 @@ export default function Home() {
                         event.target.value
                       )
                     }
-                    className="hidden sm:block bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] text-[#51685e] outline-none"
+                    className="hidden sm:block bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] text-[#51685e] outline-none shadow-sm"
                   >
                     <option value="distance">
                       Nearest
@@ -966,14 +1058,13 @@ export default function Home() {
                     </option>
                   </select>
 
-                  {/* Refresh */}
                   <button
                     type="button"
                     onClick={() =>
                       fetchResources(true)
                     }
                     disabled={refreshing}
-                    className="flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec] disabled:opacity-50"
+                    className="flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec] disabled:opacity-50 shadow-sm transition-all"
                   >
                     <RefreshCw
                       className={`w-3 h-3 ${
@@ -986,7 +1077,6 @@ export default function Home() {
                     Refresh
                   </button>
 
-                  {/* Filter */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1001,7 +1091,7 @@ export default function Home() {
                         setSortBy("rating");
                       }
                     }}
-                    className="hidden sm:flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec]"
+                    className="hidden sm:flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec] shadow-sm transition-all"
                   >
                     <Filter className="w-3 h-3" />
 
@@ -1014,7 +1104,7 @@ export default function Home() {
               </div>
 
               {/* Mobile search */}
-              <div className="md:hidden flex items-center bg-white border border-[#ddd9c8] rounded-lg px-3 mb-4">
+              <div className="md:hidden flex items-center bg-white border border-[#ddd9c8] rounded-lg px-3 mb-4 shadow-sm">
                 <Search className="w-4 h-4 text-[#89948d]" />
 
                 <input
@@ -1059,7 +1149,7 @@ export default function Home() {
               {!loading &&
                 filteredResources.length ===
                   0 && (
-                  <div className="bg-white border border-[#e7e2cc] rounded-xl py-12 text-center">
+                  <div className="bg-white/90 backdrop-blur-sm border border-[#e7e2cc] rounded-2xl py-12 text-center shadow-sm">
                     <Search className="w-8 h-8 text-[#94a49b] mx-auto" />
 
                     <h3 className="font-bold text-sm mt-3 text-[#315446]">
@@ -1074,7 +1164,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={clearFilters}
-                      className="text-xs text-[#075d45] font-bold mt-3"
+                      className="text-xs text-[#075d45] font-bold mt-3 hover:underline"
                     >
                       Clear Filters
                     </button>
@@ -1087,40 +1177,54 @@ export default function Home() {
                   0 && (
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {filteredResources.map(
-                      (resource, index) => {
-                        const fallbackImages = [
-                          IMAGES.resource1,
-                          IMAGES.resource2,
-                          IMAGES.resource3,
-                        ];
-
+                      (resource) => {
                         const image =
-                          resource.image_url ||
-                          fallbackImages[
-                            index %
-                              fallbackImages.length
-                          ];
+                          getResourceImage(resource);
 
                         return (
                           <article
                             key={resource.id}
-                            className="bg-white rounded-xl overflow-hidden border border-[#e7e2cc] shadow-sm hover:shadow-lg transition-all group"
+                            className="bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden border border-[#e7e2cc] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
                           >
                             {/* Image */}
-                            <div className="relative h-[170px] overflow-hidden">
+                            <div className="relative h-[190px] overflow-hidden bg-[#eef0e9]">
                               <img
                                 src={image}
                                 alt={
                                   resource.title ||
                                   "Agricultural resource"
                                 }
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                onError={(event) => {
+                                  if (
+                                    event.currentTarget
+                                      .src !==
+                                    IMAGES.hero
+                                  ) {
+                                    event.currentTarget.src =
+                                      IMAGES.hero;
+                                  }
+                                }}
                               />
 
-                              <span className="absolute top-3 left-3 bg-[#075d45] text-white text-[9px] font-bold px-2.5 py-1 rounded-full">
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+
+                              <span className="absolute top-3 left-3 bg-[#075d45]/95 backdrop-blur-sm text-white text-[9px] font-bold px-2.5 py-1 rounded-full shadow-lg">
                                 {resource.category ||
                                   "Marketplace"}
                               </span>
+
+                              {resource.distance !=
+                                null && (
+                                <span className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-[#315446] text-[9px] font-semibold px-2.5 py-1 rounded-full shadow">
+                                  {Number(
+                                    resource.distance
+                                  ).toFixed(
+                                    1
+                                  )}{" "}
+                                  km away
+                                </span>
+                              )}
                             </div>
 
                             {/* Content */}
@@ -1131,38 +1235,30 @@ export default function Home() {
                                     "Agricultural Resource"}
                                 </h3>
 
-                                <span className="flex items-center gap-1 text-[10px] text-[#547164] whitespace-nowrap">
-                                  <Star className="w-3 h-3 fill-[#e3a52b] text-[#e3a52b]" />
+                                {resource.rating !=
+                                  null && (
+                                  <span className="flex items-center gap-1 text-[10px] text-[#547164] whitespace-nowrap">
+                                    <Star className="w-3 h-3 fill-[#e3a52b] text-[#e3a52b]" />
 
-                                  {resource.rating ||
-                                    "4.8"}
-                                </span>
+                                    {Number(
+                                      resource.rating
+                                    ).toFixed(1)}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Location */}
-                              <div className="flex items-center gap-1.5 mt-3 text-[10px] text-[#7c8a83]">
-                                <MapPin className="w-3 h-3" />
+                              {resource.location && (
+                                <div className="flex items-center gap-1.5 mt-3 text-[10px] text-[#7c8a83]">
+                                  <MapPin className="w-3 h-3" />
 
-                                {resource.location ||
-                                  "Location available"}
-                              </div>
-
-                              {/* Distance */}
-                              {resource.distance !=
-                                null && (
-                                <p className="text-[10px] text-[#9aa49e] mt-1">
-                                  {Number(
-                                    resource.distance
-                                  ).toFixed(
-                                    1
-                                  )}{" "}
-                                  km away
-                                </p>
+                                  {resource.location}
+                                </div>
                               )}
 
                               {/* Provider */}
                               {resource.provider_name && (
-                                <p className="text-[10px] text-[#8b968f] mt-1">
+                                <p className="text-[10px] text-[#8b968f] mt-2">
                                   Provider:{" "}
                                   {
                                     resource.provider_name
@@ -1171,26 +1267,28 @@ export default function Home() {
                               )}
 
                               {/* Price */}
-                              <div className="mt-4">
-                                <span className="text-lg font-bold text-[#173e32]">
-                                  ₹
-                                  {Number(
-                                    resource.price ||
-                                      0
-                                  ).toLocaleString(
-                                    "en-IN"
-                                  )}
-                                </span>
-
-                                {resource.price_unit && (
-                                  <span className="text-[10px] text-[#8d9892]">
-                                    /
-                                    {
-                                      resource.price_unit
-                                    }
+                              {resource.price != null && (
+                                <div className="mt-4">
+                                  <span className="text-lg font-bold text-[#173e32]">
+                                    ₹
+                                    {Number(
+                                      resource.price ||
+                                        0
+                                    ).toLocaleString(
+                                      "en-IN"
+                                    )}
                                   </span>
-                                )}
-                              </div>
+
+                                  {resource.price_unit && (
+                                    <span className="text-[10px] text-[#8d9892]">
+                                      /
+                                      {
+                                        resource.price_unit
+                                      }
+                                    </span>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Details */}
                               <button
@@ -1200,11 +1298,11 @@ export default function Home() {
                                     resource
                                   )
                                 }
-                                className="w-full mt-4 h-9 rounded-lg bg-[#075d45] hover:bg-[#064c3a] text-white text-[10px] font-bold flex items-center justify-center gap-2 transition-colors"
+                                className="w-full mt-4 h-9 rounded-lg bg-[#075d45] hover:bg-[#064c3a] text-white text-[10px] font-bold flex items-center justify-center gap-2 transition-all hover:shadow-lg"
                               >
                                 View Details
 
-                                <ArrowRight className="w-3.5 h-3.5" />
+                                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                               </button>
                             </div>
                           </article>
@@ -1223,25 +1321,25 @@ export default function Home() {
               <Feature
                 icon={ShieldCheck}
                 title="Verified Listings"
-                text="Every tool inspected"
+                text="Trusted marketplace resources"
               />
 
               <Feature
                 icon={Users}
-                title="Active Community"
-                text="5,000+ local farmers"
+                title="Local Community"
+                text="Connect with nearby farmers"
               />
 
               <Feature
                 icon={Headphones}
                 title="Expert Support"
-                text="Available 24/7"
+                text="Agriculture assistance"
               />
 
               <Feature
                 icon={Leaf}
                 title="Sustainable Growth"
-                text="Eco-friendly focus"
+                text="Better farming resources"
               />
             </section>
 
@@ -1251,7 +1349,7 @@ export default function Home() {
 
             <footer className="py-7 flex flex-col md:flex-row justify-between items-center gap-5">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[#075d45] text-white flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-[#075d45] text-white flex items-center justify-center shadow">
                   <Leaf className="w-4 h-4" />
                 </div>
 
@@ -1317,25 +1415,30 @@ export default function Home() {
         >
           <div className="bg-[#fffdf5] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             {/* Modal image */}
-            <div className="relative h-40">
+            <div className="relative h-40 bg-[#eef0e9]">
               <img
-                src={
-                  selectedResource.image_url ||
-                  IMAGES.resource1
-                }
+                src={getResourceImage(
+                  selectedResource
+                )}
                 alt={
                   selectedResource.title ||
                   "Resource"
                 }
                 className="w-full h-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.src =
+                    IMAGES.hero;
+                }}
               />
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
               <button
                 type="button"
                 onClick={() =>
                   setSelectedResource(null)
                 }
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow"
                 aria-label="Close"
               >
                 <X className="w-4 h-4 text-[#315446]" />
@@ -1355,12 +1458,13 @@ export default function Home() {
               </h2>
 
               <div className="mt-3 space-y-2 text-xs text-[#687c72]">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#075d45]" />
+                {selectedResource.location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#075d45]" />
 
-                  {selectedResource.location ||
-                    "Location unavailable"}
-                </div>
+                    {selectedResource.location}
+                  </div>
+                )}
 
                 {selectedResource.provider_name && (
                   <div className="flex items-center gap-2">
@@ -1372,13 +1476,17 @@ export default function Home() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-[#e3a52b]" />
+                {selectedResource.rating !=
+                  null && (
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-[#e3a52b]" />
 
-                  {selectedResource.rating ||
-                    "4.8"}{" "}
-                  rating
-                </div>
+                    {Number(
+                      selectedResource.rating
+                    ).toFixed(1)}{" "}
+                    rating
+                  </div>
+                )}
               </div>
 
               {/* Description */}
@@ -1391,24 +1499,26 @@ export default function Home() {
               )}
 
               {/* Price */}
-              <div className="mt-4">
-                <span className="text-xl font-bold text-[#173e32]">
-                  ₹
-                  {Number(
-                    selectedResource.price ||
-                      0
-                  ).toLocaleString("en-IN")}
-                </span>
-
-                {selectedResource.price_unit && (
-                  <span className="text-xs text-[#89948d]">
-                    /
-                    {
-                      selectedResource.price_unit
-                    }
+              {selectedResource.price != null && (
+                <div className="mt-4">
+                  <span className="text-xl font-bold text-[#173e32]">
+                    ₹
+                    {Number(
+                      selectedResource.price ||
+                        0
+                    ).toLocaleString("en-IN")}
                   </span>
-                )}
-              </div>
+
+                  {selectedResource.price_unit && (
+                    <span className="text-xs text-[#89948d]">
+                      /
+                      {
+                        selectedResource.price_unit
+                      }
+                    </span>
+                  )}
+                </div>
+              )}
 
               <p className="text-xs text-[#7c8a83] mt-3">
                 Enter your details and the
@@ -1460,7 +1570,7 @@ export default function Home() {
                     onClick={() =>
                       setSelectedResource(null)
                     }
-                    className="flex-1 h-10 border border-[#d9d5c5] rounded-lg text-xs font-semibold text-[#62736b]"
+                    className="flex-1 h-10 border border-[#d9d5c5] rounded-lg text-xs font-semibold text-[#62736b] hover:bg-[#f5f3e8] transition-colors"
                   >
                     Cancel
                   </button>
@@ -1468,7 +1578,7 @@ export default function Home() {
                   <button
                     type="submit"
                     disabled={bookingLoading}
-                    className="flex-1 h-10 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                    className="flex-1 h-10 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
                   >
                     {bookingLoading ? (
                       <>
