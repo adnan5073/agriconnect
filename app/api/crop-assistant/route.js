@@ -1,324 +1,353 @@
 import { NextResponse } from "next/server";
-
-const N8N_WEBHOOK =
-  "https://hadysinan.app.n8n.cloud/webhook/15888a11-34c4-4674-9c9d-528bdded0059";
+import { GoogleGenAI } from "@google/genai";
 
 export const runtime = "nodejs";
 
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
 export async function POST(request) {
   try {
-    /* -------------------------------------------------------
-       READ REQUEST
-    ------------------------------------------------------- */
-
     const body = await request.json();
 
-    if (!body) {
-      return NextResponse.json(
-        {
-          error: "No request data received.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
+    const crop = body?.crop?.trim() || "";
+    const question = body?.question?.trim() || "";
+    const image = body?.image || "";
+    const fileName = body?.fileName || "crop-image";
+    const fileType = body?.fileType || "image/jpeg";
 
-    const {
-      action,
-      crop,
-      question,
-      image,
-      fileName,
-      fileType,
-    } = body;
-
-    /* -------------------------------------------------------
-       VALIDATION
-    ------------------------------------------------------- */
+    // -----------------------------------------
+    // IMAGE IS REQUIRED
+    // QUESTION IS OPTIONAL
+    // -----------------------------------------
 
     if (!image) {
       return NextResponse.json(
         {
-          error:
-            "No crop image was received. Please upload an image.",
+          success: false,
+          error: "Please upload a crop image first.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
-    if (!question || !question.trim()) {
+    // -----------------------------------------
+    // Extract base64 image
+    // -----------------------------------------
+
+    let base64Image = image;
+
+    if (image.includes(",")) {
+      base64Image = image.split(",")[1];
+    }
+
+    if (!base64Image) {
       return NextResponse.json(
         {
-          error:
-            "Please enter a question about your crop.",
+          success: false,
+          error: "Invalid image data.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
-    if (!image.startsWith("data:image/")) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid image format. Please upload a JPG, PNG, or WebP image.",
-        },
-        {
-          status: 400,
+    // -----------------------------------------
+    // Supported image types
+    // -----------------------------------------
+
+    const supportedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/jpg",
+    ];
+
+    const mimeType = supportedTypes.includes(fileType)
+      ? fileType
+      : "image/jpeg";
+
+    // -----------------------------------------
+    // Question handling
+    // -----------------------------------------
+
+    let userQuestion;
+
+    if (question.length > 0) {
+      userQuestion = `
+The farmer has asked this specific question:
+
+"${question}"
+
+Answer this question while also using the uploaded image to support your assessment.
+`;
+    } else {
+      userQuestion = `
+The farmer has NOT asked a specific question.
+
+This is completely valid.
+
+Analyze the uploaded crop image on your own and provide a useful general crop-health assessment.
+
+Look for:
+- visible diseases
+- pests
+- nutrient deficiency symptoms
+- leaf discoloration
+- spots
+- wilting
+- unusual growth
+- physical damage
+- other visible crop-health problems
+
+If the crop appears healthy, clearly state that.
+`;
+    }
+
+    // -----------------------------------------
+    // Crop information
+    // -----------------------------------------
+
+    const cropInformation = crop
+      ? `The farmer identified the crop as: ${crop}`
+      : `The farmer did not specify the crop name. Identify the likely crop from the image if possible.`;
+
+    // -----------------------------------------
+    // AI prompt
+    // -----------------------------------------
+
+    const prompt = `
+You are an agricultural crop assistant for AgriConnect.
+
+Your job is to analyze a crop image and provide practical agricultural guidance.
+
+${cropInformation}
+
+${userQuestion}
+
+IMPORTANT RULES:
+
+1. Analyze the uploaded image carefully.
+2. Do not claim absolute certainty from an image alone.
+3. If the image is unclear, say that the result is uncertain.
+4. Do not invent symptoms that cannot be seen.
+5. If the plant appears healthy, report it as healthy.
+6. Give practical and understandable recommendations.
+7. Do not recommend dangerous or inappropriate chemical use.
+8. If treatment is suggested, recommend following the product label and local agricultural guidance.
+9. The confidence value must be a number between 0 and 100.
+10. Severity must be one of:
+   - Healthy
+   - Mild
+   - Moderate
+   - Severe
+   - Unclear
+
+Return ONLY valid JSON with this structure:
+
+{
+  "crop": "Crop name",
+  "condition": "Likely condition or Healthy",
+  "confidence": 0,
+  "severity": "Healthy",
+  "observations": [
+    "observation 1",
+    "observation 2"
+  ],
+  "recommendations": [
+    "recommendation 1",
+    "recommendation 2"
+  ],
+  "additional_information": "Useful additional information",
+  "disclaimer": "This AI assessment is for informational purposes and should be confirmed with a qualified agricultural expert when necessary."
+}
+`;
+
+    // -----------------------------------------
+    // Gemini request with retry
+    // -----------------------------------------
+
+    let response;
+    let lastError;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Image,
+                  },
+                },
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+
+          config: {
+            responseMimeType: "application/json",
+
+            responseSchema: {
+              type: "object",
+
+              properties: {
+                crop: {
+                  type: "string",
+                },
+
+                condition: {
+                  type: "string",
+                },
+
+                confidence: {
+                  type: "number",
+                },
+
+                severity: {
+                  type: "string",
+                  enum: [
+                    "Healthy",
+                    "Mild",
+                    "Moderate",
+                    "Severe",
+                    "Unclear",
+                  ],
+                },
+
+                observations: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+
+                recommendations: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+
+                additional_information: {
+                  type: "string",
+                },
+
+                disclaimer: {
+                  type: "string",
+                },
+              },
+
+              required: [
+                "crop",
+                "condition",
+                "confidence",
+                "severity",
+                "observations",
+                "recommendations",
+                "additional_information",
+                "disclaimer",
+              ],
+            },
+          },
+        });
+
+        break;
+      } catch (error) {
+        lastError = error;
+
+        const message = error?.message || "";
+
+        if (
+          !message.includes("503") &&
+          !message.includes("UNAVAILABLE")
+        ) {
+          throw error;
         }
+
+        if (attempt < 2) {
+          const delay = 2000 * Math.pow(2, attempt);
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, delay)
+          );
+        }
+      }
+    }
+
+    if (!response) {
+      throw (
+        lastError ||
+        new Error(
+          "The AI service is temporarily unavailable."
+        )
       );
     }
 
-    /* -------------------------------------------------------
-       IMAGE SIZE CHECK
-    ------------------------------------------------------- */
+    // -----------------------------------------
+    // Get AI response
+    // -----------------------------------------
 
-    const commaIndex = image.indexOf(",");
+    let text = "";
 
-    if (commaIndex === -1) {
-      return NextResponse.json(
-        {
-          error: "The image data is invalid.",
-        },
-        {
-          status: 400,
-        }
+    if (typeof response.text === "string") {
+      text = response.text;
+    } else if (typeof response.text === "function") {
+      text = response.text();
+    }
+
+    if (!text) {
+      throw new Error(
+        "The AI returned an empty response."
       );
     }
 
-    const base64Data = image.substring(
-      commaIndex + 1
-    );
+    // -----------------------------------------
+    // Parse JSON
+    // -----------------------------------------
 
-    /*
-     * Approximate decoded size.
-     */
-    const imageSize =
-      Math.floor(
-        (base64Data.length * 3) / 4
-      );
-
-    /*
-     * Keep the server request reasonably small.
-     */
-    const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-
-    if (imageSize > MAX_IMAGE_SIZE) {
-      return NextResponse.json(
-        {
-          error:
-            "The image is still too large. Please choose a smaller image.",
-        },
-        {
-          status: 413,
-        }
-      );
-    }
-
-    /* -------------------------------------------------------
-       SEND TO N8N
-    ------------------------------------------------------- */
-
-    const n8nPayload = {
-      action: action || "crop_analysis",
-
-      crop: crop || "",
-
-      question: question.trim(),
-
-      /*
-       * Complete Data URL.
-       * This allows n8n to identify the image type.
-       */
-      image: image,
-
-      /*
-       * Base64 without the data:image/... prefix.
-       */
-      imageBase64: base64Data,
-
-      fileName:
-        fileName || "crop-image.jpg",
-
-      fileType:
-        fileType || "image/jpeg",
-
-      mimeType:
-        fileType || "image/jpeg",
-    };
-
-    console.log(
-      "Sending crop analysis request to n8n..."
-    );
-
-    console.log(
-      "Crop:",
-      n8nPayload.crop
-    );
-
-    console.log(
-      "Question:",
-      n8nPayload.question
-    );
-
-    console.log(
-      "File:",
-      n8nPayload.fileName
-    );
-
-    console.log(
-      "Image size:",
-      Math.round(imageSize / 1024),
-      "KB"
-    );
-
-    /* -------------------------------------------------------
-       N8N REQUEST
-    ------------------------------------------------------- */
-
-    const controller =
-      new AbortController();
-
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 120000);
-
-    let n8nResponse;
+    let result;
 
     try {
-      n8nResponse = await fetch(
-        N8N_WEBHOOK,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-
-          body: JSON.stringify(
-            n8nPayload
-          ),
-
-          cache: "no-store",
-
-          signal: controller.signal,
-        }
+      result = JSON.parse(text);
+    } catch (error) {
+      console.error(
+        "AI JSON parsing error:",
+        error
       );
-    } finally {
-      clearTimeout(timeout);
-    }
 
-    /* -------------------------------------------------------
-       READ N8N RESPONSE
-    ------------------------------------------------------- */
-
-    const responseText =
-      await n8nResponse.text();
-
-    console.log(
-      "n8n HTTP status:",
-      n8nResponse.status
-    );
-
-    console.log(
-      "n8n response:",
-      responseText
-    );
-
-    let responseData = {};
-
-    if (responseText) {
-      try {
-        responseData =
-          JSON.parse(responseText);
-      } catch {
-        responseData = {
-          output: responseText,
-        };
-      }
-    }
-
-    /* -------------------------------------------------------
-       N8N ERROR
-    ------------------------------------------------------- */
-
-    if (!n8nResponse.ok) {
-      let errorMessage =
-        responseData?.error ||
-        responseData?.message ||
-        responseData?.output;
-
-      if (
-        typeof errorMessage ===
-        "object"
-      ) {
-        errorMessage =
-          JSON.stringify(
-            errorMessage
-          );
-      }
-
-      if (!errorMessage) {
-        errorMessage =
-          `n8n returned HTTP ${n8nResponse.status}.`;
-      }
-
-      return NextResponse.json(
-        {
-          error: errorMessage,
-
-          status:
-            n8nResponse.status,
-
-          source: "n8n",
-        },
-        {
-          status: 502,
-        }
+      throw new Error(
+        "The AI returned an invalid result."
       );
     }
 
-    /* -------------------------------------------------------
-       SUCCESS
-    ------------------------------------------------------- */
+    // -----------------------------------------
+    // Return result
+    // -----------------------------------------
 
-    return NextResponse.json(
-      responseData,
-      {
-        status: 200,
-      }
-    );
+    return NextResponse.json({
+      success: true,
+      result,
+    });
   } catch (error) {
     console.error(
-      "Crop Assistant API Error:",
+      "Crop assistant API error:",
       error
     );
 
-    if (
-      error?.name ===
-      "AbortError"
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "The AI analysis took too long. Please try again with a clearer or smaller image.",
-        },
-        {
-          status: 504,
-        }
-      );
-    }
-
     return NextResponse.json(
       {
+        success: false,
         error:
           error?.message ||
-          "Unable to connect to the AI crop assistant.",
+          "Unable to process the crop image.",
       },
       {
         status: 500,
