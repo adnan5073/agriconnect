@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getDistanceKm } from "@/lib/geo";
+import Image from "next/image";
 
 import {
   Search,
@@ -185,6 +186,19 @@ export default function HomePage() {
   });
 
   const [userLocation, setUserLocation] = useState(null);
+
+  useEffect(() => {
+    const favicon = document.querySelector('link[rel="icon"]');
+
+    if (favicon) {
+      favicon.href = "/img.png";
+    } else {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.href = "/img.png";
+      document.head.appendChild(link);
+    }
+  }, []);
 
   useEffect(() => {
     loadResources();
@@ -370,10 +384,11 @@ export default function HomePage() {
           );
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: authEmail.trim(),
-          password: authPassword,
-        });
+        const { data, error } =
+          await supabase.auth.signInWithPassword({
+            email: authEmail.trim(),
+            password: authPassword,
+          });
 
         if (error) {
           setAuthError(error.message);
@@ -790,17 +805,23 @@ export default function HomePage() {
             href="/"
             className="flex items-center gap-3"
           >
-            <div className="w-11 h-11 rounded-2xl bg-[#075d45] text-white flex items-center justify-center shadow-lg">
-              <Leaf size={23} />
+            <div className="w-11 h-11 rounded-xl bg-[#f4f8e9] flex items-center justify-center overflow-hidden">
+              <Image
+                src="/img.png"
+                alt="AgriConnect"
+                width={44}
+                height={44}
+                className="object-contain"
+              />
             </div>
 
             <div>
-              <h1 className="font-bold text-xl tracking-tight">
-                Agri-Connect
+              <h1 className="text-lg font-bold text-[#075d45]">
+                AgriConnect
               </h1>
 
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#668077]">
-                Farm Resource Network
+              <p className="text-[10px] text-[#687c72]">
+                Farmers • Resources • Growth
               </p>
             </div>
           </Link>
@@ -1487,8 +1508,14 @@ export default function HomePage() {
             <div>
               <div className="flex items-center gap-2">
 
-                <div className="w-9 h-9 rounded-xl bg-[#075d45] text-white flex items-center justify-center">
-                  <Leaf size={18} />
+                <div className="w-9 h-9 rounded-xl bg-[#f4f8e9] flex items-center justify-center overflow-hidden">
+                  <Image
+                    src="/img.png"
+                    alt="AgriConnect"
+                    width={36}
+                    height={36}
+                    className="object-contain"
+                  />
                 </div>
 
                 <span className="font-bold">
