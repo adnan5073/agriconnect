@@ -80,31 +80,26 @@ const IMAGES = {
 const categories = [
   {
     name: "Equipment",
-    count: "124 Listings",
     icon: Tractor,
     image: IMAGES.equipment,
   },
   {
     name: "Workers",
-    count: "86 Listings",
     icon: UserCheck,
     image: IMAGES.workers,
   },
   {
     name: "Seeds",
-    count: "312 Listings",
     icon: Sprout,
     image: IMAGES.seeds,
   },
   {
     name: "Irrigation",
-    count: "45 Listings",
     icon: Droplets,
     image: IMAGES.irrigation,
   },
   {
     name: "Fertilizer",
-    count: "98 Listings",
     icon: FlaskConical,
     image: IMAGES.fertilizer,
   },
@@ -166,41 +161,77 @@ function ResourceSkeleton() {
 
 export default function Home() {
   const [resources, setResources] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [sortBy, setSortBy] = useState("distance");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-  const [mobileSidebar, setMobileSidebar] = useState(false);
-  const [selectedResource, setSelectedResource] = useState(null);
 
-  const [farmerInfo, setFarmerInfo] = useState({
-    name: "",
-    phone: "",
-  });
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
-  const [bookingLoading, setBookingLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] =
+    useState("All");
 
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [sortBy, setSortBy] =
+    useState("distance");
 
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState("login");
+  const [loading, setLoading] =
+    useState(true);
 
-  const [authName, setAuthName] = useState("");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
+  const [refreshing, setRefreshing] =
+    useState(false);
 
-  const [authError, setAuthError] = useState("");
-  const [authMessage, setAuthMessage] = useState("");
-  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [error, setError] =
+    useState("");
+
+  const [mobileSidebar, setMobileSidebar] =
+    useState(false);
+
+  const [selectedResource, setSelectedResource] =
+    useState(null);
+
+  const [farmerInfo, setFarmerInfo] =
+    useState({
+      name: "",
+      phone: "",
+    });
+
+  const [bookingLoading, setBookingLoading] =
+    useState(false);
+
+  const [user, setUser] =
+    useState(null);
+
+  const [authLoading, setAuthLoading] =
+    useState(true);
+
+  const [showAuthModal, setShowAuthModal] =
+    useState(false);
+
+  const [authMode, setAuthMode] =
+    useState("login");
+
+  const [authName, setAuthName] =
+    useState("");
+
+  const [authEmail, setAuthEmail] =
+    useState("");
+
+  const [authPassword, setAuthPassword] =
+    useState("");
+
+  const [authError, setAuthError] =
+    useState("");
+
+  const [authMessage, setAuthMessage] =
+    useState("");
+
+  const [authSubmitting, setAuthSubmitting] =
+    useState(false);
 
   /* Default location = Kochi */
-  const [userLocation, setUserLocation] = useState({
-    lat: 9.9312,
-    lng: 76.2673,
-  });
+
+  const [userLocation, setUserLocation] =
+    useState({
+      lat: 9.9312,
+      lng: 76.2673,
+    });
 
   /* =====================================================
      INITIAL LOAD
@@ -209,34 +240,38 @@ export default function Home() {
   useEffect(() => {
     fetchResources();
     getLocation();
-    loadSession();
-  }, []);
 
-  /* =====================================================
-     AUTH SESSION
-  ===================================================== */
+    let mounted = true;
 
-  async function loadSession() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    async function initializeAuth() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    setUser(session?.user ?? null);
-    setAuthLoading(false);
+      if (mounted) {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      }
+    }
+
+    initializeAuth();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUser(session?.user ?? null);
-        setAuthLoading(false);
+        if (mounted) {
+          setUser(session?.user ?? null);
+          setAuthLoading(false);
+        }
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
-  }
+  }, []);
 
   /* =====================================================
      GET RESOURCES
@@ -330,16 +365,23 @@ export default function Home() {
   ===================================================== */
 
   const filteredResources = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const query =
+      searchQuery.trim().toLowerCase();
 
     const filtered = resources
       .filter((resource) => {
-        const title = resource.title || "";
-        const category = resource.category || "";
+        const title =
+          resource.title || "";
+
+        const category =
+          resource.category || "";
+
         const provider =
           resource.provider_name || "";
+
         const location =
           resource.location || "";
+
         const description =
           resource.description || "";
 
@@ -478,6 +520,10 @@ export default function Home() {
         return;
       }
 
+      /* ===============================
+         REGISTER
+      =============================== */
+
       if (authMode === "register") {
         if (authName.trim().length < 2) {
           setAuthError(
@@ -494,21 +540,30 @@ export default function Home() {
           password: authPassword,
           options: {
             data: {
-              full_name: authName.trim(),
+              full_name:
+                authName.trim(),
             },
           },
         });
 
         if (signupError) {
-          setAuthError(signupError.message);
+          setAuthError(
+            signupError.message
+          );
           return;
         }
 
-        setAuthMessage(
-          data.session
-            ? "Account created successfully!"
-            : "Account created! Check your email to verify your account."
-        );
+        if (data?.session) {
+          setUser(data.user);
+
+          setAuthMessage(
+            "Account created successfully!"
+          );
+        } else {
+          setAuthMessage(
+            "Account created! Check your email to verify your account."
+          );
+        }
 
         setAuthName("");
         setAuthEmail("");
@@ -517,7 +572,12 @@ export default function Home() {
         return;
       }
 
+      /* ===============================
+         LOGIN
+      =============================== */
+
       const {
+        data,
         error: loginError,
       } = await supabase.auth.signInWithPassword({
         email: authEmail.trim(),
@@ -525,11 +585,24 @@ export default function Home() {
       });
 
       if (loginError) {
-        setAuthError(loginError.message);
+        setAuthError(
+          loginError.message
+        );
         return;
       }
 
-      setAuthMessage("Login successful!");
+      if (!data?.user) {
+        setAuthError(
+          "Login failed. Please try again."
+        );
+        return;
+      }
+
+      setUser(data.user);
+
+      setAuthMessage(
+        "Login successful!"
+      );
 
       setAuthEmail("");
       setAuthPassword("");
@@ -552,6 +625,10 @@ export default function Home() {
       setAuthSubmitting(false);
     }
   }
+
+  /* =====================================================
+     LOGOUT
+  ===================================================== */
 
   async function handleLogout() {
     const {
@@ -583,8 +660,11 @@ export default function Home() {
       return;
     }
 
-    const name = farmerInfo.name.trim();
-    const phone = farmerInfo.phone.trim();
+    const name =
+      farmerInfo.name.trim();
+
+    const phone =
+      farmerInfo.phone.trim();
 
     if (name.length < 2) {
       alert("Please enter your name.");
@@ -609,10 +689,18 @@ export default function Home() {
           {
             resource_id:
               selectedResource.id,
-            farmer_id: user.id,
-            farmer_name: name,
-            farmer_phone: phone,
-            status: "pending",
+
+            farmer_id:
+              user.id,
+
+            farmer_name:
+              name,
+
+            farmer_phone:
+              phone,
+
+            status:
+              "pending",
           },
         ]);
 
@@ -623,7 +711,8 @@ export default function Home() {
         );
 
         alert(
-          "Booking failed. Please try again."
+          bookingError.message ||
+            "Booking failed. Please try again."
         );
 
         return;
@@ -814,11 +903,14 @@ export default function Home() {
         )}
 
         <main className="flex-1 min-w-0">
+
           {/* HEADER */}
 
           <header className="h-[58px] border-b border-[#e7e2cc] bg-[#fffdf0]/95 backdrop-blur sticky top-0 z-30">
             <div className="h-full px-4 sm:px-6 lg:px-7 flex items-center justify-between">
+
               <div className="flex items-center gap-3">
+
                 <button
                   type="button"
                   onClick={() =>
@@ -830,6 +922,7 @@ export default function Home() {
                 </button>
 
                 <div className="hidden sm:flex items-center gap-2 text-xs">
+
                   <span className="text-[#8b978f]">
                     Dashboard
                   </span>
@@ -839,11 +932,15 @@ export default function Home() {
                   <span className="font-semibold text-[#315446]">
                     Resources
                   </span>
+
                 </div>
+
               </div>
 
               <div className="flex items-center gap-4">
+
                 <div className="hidden md:flex items-center w-[250px] h-8 bg-white border border-[#ddd9c8] rounded-full px-3">
+
                   <Search className="w-3.5 h-3.5 text-[#89948d]" />
 
                   <input
@@ -868,6 +965,7 @@ export default function Home() {
                       <X className="w-3.5 h-3.5 text-[#89948d]" />
                     </button>
                   )}
+
                 </div>
 
                 <button
@@ -882,6 +980,7 @@ export default function Home() {
 
                 {user ? (
                   <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-[#e0dccb]">
+
                     <div className="w-8 h-8 rounded-full bg-[#d5eee0] flex items-center justify-center">
                       <User className="w-4 h-4 text-[#17634d]" />
                     </div>
@@ -896,6 +995,7 @@ export default function Home() {
                         {user.email}
                       </p>
                     </div>
+
                   </div>
                 ) : (
                   <button
@@ -906,14 +1006,17 @@ export default function Home() {
                     Login
                   </button>
                 )}
+
               </div>
             </div>
           </header>
 
           <div className="px-4 sm:px-6 lg:px-7 py-4 lg:py-5 max-w-[1200px] mx-auto">
+
             {/* HERO */}
 
             <section className="relative h-[310px] sm:h-[350px] rounded-xl overflow-hidden shadow-sm">
+
               <img
                 src={IMAGES.hero}
                 alt="Agricultural farm"
@@ -923,6 +1026,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-black/5" />
 
               <div className="relative z-10 h-full flex flex-col justify-center px-7 sm:px-10 max-w-[600px]">
+
                 <h1 className="font-serif text-white text-3xl sm:text-4xl lg:text-[43px] leading-[1.08] font-bold">
                   Empowering Every
                   <br />
@@ -934,11 +1038,15 @@ export default function Home() {
                   seeds, and local expertise to
                   grow your harvest and community.
                 </p>
+
               </div>
 
               <div className="absolute left-1/2 -translate-x-1/2 bottom-[-1px] w-[90%] max-w-[680px]">
+
                 <div className="bg-white rounded-xl shadow-xl p-1.5 flex flex-col sm:flex-row gap-1">
+
                   <div className="flex-1 flex items-center gap-2 px-3 h-10">
+
                     <Search className="w-4 h-4 text-[#89948d]" />
 
                     <input
@@ -957,11 +1065,15 @@ export default function Home() {
                       placeholder="What are you looking for?"
                       className="w-full outline-none text-xs text-[#315446]"
                     />
+
                   </div>
 
                   <div className="hidden sm:flex items-center gap-2 px-4 border-l border-[#e6e2d4] text-xs text-[#51685e]">
+
                     <MapPin className="w-3.5 h-3.5 text-[#187154]" />
+
                     Kochi, India
+
                   </div>
 
                   <button
@@ -971,6 +1083,7 @@ export default function Home() {
                   >
                     Find Resources
                   </button>
+
                 </div>
               </div>
             </section>
@@ -978,8 +1091,11 @@ export default function Home() {
             {/* CATEGORIES */}
 
             <section className="mt-12">
+
               <div className="flex items-end justify-between mb-4">
+
                 <div>
+
                   <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#173e32]">
                     Explore by Category
                   </h2>
@@ -988,6 +1104,7 @@ export default function Home() {
                     Browse high-quality listings
                     curated for your needs
                   </p>
+
                 </div>
 
                 <button
@@ -999,10 +1116,13 @@ export default function Home() {
                 >
                   View All Categories
                 </button>
+
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+
                 {categories.map((category) => {
+
                   const selected =
                     selectedCategory ===
                     category.name;
@@ -1024,32 +1144,40 @@ export default function Home() {
                           : "border-[#ebe7d7] hover:border-[#b4cdbd] hover:shadow-md"
                       }`}
                     >
+
                       <div className="h-[110px] overflow-hidden bg-[#eef0e9]">
+
                         <img
                           src={category.image}
                           alt={category.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
+
                       </div>
 
                       <div className="p-3">
+
                         <p className="text-[10px] font-bold uppercase text-[#315446]">
                           {category.name}
                         </p>
 
                         <p className="text-[10px] text-[#8b968f] mt-1">
-                          {category.count}
+                          Browse listings
                         </p>
+
                       </div>
+
                     </button>
                   );
                 })}
+
               </div>
             </section>
 
             {/* CROP ASSISTANT */}
 
             <section className="relative mt-7 h-[190px] sm:h-[200px] rounded-xl overflow-hidden">
+
               <img
                 src={IMAGES.cropAssistant}
                 alt="Crop assistant"
@@ -1059,9 +1187,13 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-[#173e32]/90 via-[#173e32]/65 to-transparent" />
 
               <div className="relative z-10 h-full flex flex-col justify-center px-6 sm:px-8 max-w-[600px]">
+
                 <div className="inline-flex w-fit items-center gap-1.5 bg-white/90 text-[#17634d] px-2.5 py-1 rounded-full text-[9px] font-bold">
+
                   <Sparkles className="w-3 h-3" />
+
                   NEW FEATURE
+
                 </div>
 
                 <h2 className="font-serif text-white text-2xl sm:text-3xl font-bold mt-3">
@@ -1075,6 +1207,7 @@ export default function Home() {
                 </p>
 
                 <div className="flex gap-2 mt-4">
+
                   <Link
                     href="/crop-assistant"
                     className="inline-flex items-center gap-2 bg-white text-[#075d45] px-4 py-2 rounded-lg text-[10px] font-bold hover:bg-[#f5f5e9]"
@@ -1089,6 +1222,7 @@ export default function Home() {
                   >
                     Learn More
                   </Link>
+
                 </div>
               </div>
             </section>
@@ -1099,8 +1233,11 @@ export default function Home() {
               id="resources"
               className="mt-8 scroll-mt-20"
             >
+
               <div className="flex items-end justify-between mb-4">
+
                 <div>
+
                   <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#173e32]">
                     Resources Near You
                   </h2>
@@ -1109,9 +1246,11 @@ export default function Home() {
                     Top rated listings available
                     near you
                   </p>
+
                 </div>
 
                 <div className="flex items-center gap-2">
+
                   <select
                     value={sortBy}
                     onChange={(event) =>
@@ -1121,6 +1260,7 @@ export default function Home() {
                     }
                     className="hidden sm:block bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] text-[#51685e] outline-none"
                   >
+
                     <option value="distance">
                       Nearest
                     </option>
@@ -1132,6 +1272,7 @@ export default function Home() {
                     <option value="price">
                       Lowest Price
                     </option>
+
                   </select>
 
                   <button
@@ -1142,6 +1283,7 @@ export default function Home() {
                     disabled={refreshing}
                     className="flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec] disabled:opacity-50"
                   >
+
                     <RefreshCw
                       className={`w-3 h-3 ${
                         refreshing
@@ -1151,6 +1293,7 @@ export default function Home() {
                     />
 
                     Refresh
+
                   </button>
 
                   <button
@@ -1169,19 +1312,23 @@ export default function Home() {
                     }}
                     className="hidden sm:flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec]"
                   >
+
                     <Filter className="w-3 h-3" />
 
                     {selectedCategory !==
                     "All"
                       ? "Clear Category"
                       : "Top Rated"}
+
                   </button>
+
                 </div>
               </div>
 
-              {/* Mobile search */}
+              {/* MOBILE SEARCH */}
 
               <div className="md:hidden flex items-center bg-white border border-[#ddd9c8] rounded-lg px-3 mb-4">
+
                 <Search className="w-4 h-4 text-[#89948d]" />
 
                 <input
@@ -1194,12 +1341,14 @@ export default function Home() {
                   placeholder="Search resources..."
                   className="w-full px-2 py-2.5 outline-none text-xs"
                 />
+
               </div>
 
-              {/* Error */}
+              {/* ERROR */}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
+
                   <p>{error}</p>
 
                   <button
@@ -1211,25 +1360,29 @@ export default function Home() {
                   >
                     Retry
                   </button>
+
                 </div>
               )}
 
-              {/* Loading */}
+              {/* LOADING */}
 
               {loading && (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
                   <ResourceSkeleton />
                   <ResourceSkeleton />
                   <ResourceSkeleton />
+
                 </div>
               )}
 
-              {/* Empty */}
+              {/* EMPTY */}
 
               {!loading &&
                 filteredResources.length ===
                   0 && (
                   <div className="bg-white border border-[#e7e2cc] rounded-xl py-12 text-center">
+
                     <Search className="w-8 h-8 text-[#94a49b] mx-auto" />
 
                     <h3 className="font-bold text-sm mt-3 text-[#315446]">
@@ -1248,17 +1401,20 @@ export default function Home() {
                     >
                       Clear Filters
                     </button>
+
                   </div>
                 )}
 
-              {/* Resource cards */}
+              {/* RESOURCE CARDS */}
 
               {!loading &&
                 filteredResources.length >
                   0 && (
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
                     {filteredResources.map(
                       (resource, index) => {
+
                         const fallbackImages = [
                           IMAGES.resource1,
                           IMAGES.resource2,
@@ -1277,7 +1433,9 @@ export default function Home() {
                             key={resource.id}
                             className="bg-white rounded-xl overflow-hidden border border-[#e7e2cc] shadow-sm hover:shadow-lg transition-all group"
                           >
+
                             <div className="relative h-[170px] overflow-hidden">
+
                               <img
                                 src={image}
                                 alt={
@@ -1291,53 +1449,65 @@ export default function Home() {
                                 {resource.category ||
                                   "Marketplace"}
                               </span>
+
                             </div>
 
                             <div className="p-4">
+
                               <div className="flex justify-between gap-2">
+
                                 <h3 className="font-bold text-sm text-[#24473b] leading-tight">
                                   {resource.title ||
                                     "Agricultural Resource"}
                                 </h3>
 
                                 <span className="flex items-center gap-1 text-[10px] text-[#547164] whitespace-nowrap">
+
                                   <Star className="w-3 h-3 fill-[#e3a52b] text-[#e3a52b]" />
 
                                   {resource.rating ||
                                     "4.8"}
+
                                 </span>
+
                               </div>
 
                               <div className="flex items-center gap-1.5 mt-3 text-[10px] text-[#7c8a83]">
+
                                 <MapPin className="w-3 h-3" />
 
                                 {resource.location ||
                                   "Location available"}
+
                               </div>
 
                               {resource.distance !=
                                 null && (
                                 <p className="text-[10px] text-[#9aa49e] mt-1">
+
                                   {Number(
                                     resource.distance
-                                  ).toFixed(
-                                    1
-                                  )}{" "}
+                                  ).toFixed(1)}{" "}
                                   km away
+
                                 </p>
                               )}
 
                               {resource.provider_name && (
                                 <p className="text-[10px] text-[#8b968f] mt-1">
+
                                   Provider:{" "}
                                   {
                                     resource.provider_name
                                   }
+
                                 </p>
                               )}
 
                               <div className="mt-4">
+
                                 <span className="text-lg font-bold text-[#173e32]">
+
                                   ₹
                                   {Number(
                                     resource.price ||
@@ -1345,16 +1515,20 @@ export default function Home() {
                                   ).toLocaleString(
                                     "en-IN"
                                   )}
+
                                 </span>
 
                                 {resource.price_unit && (
                                   <span className="text-[10px] text-[#8d9892]">
+
                                     /
                                     {
                                       resource.price_unit
                                     }
+
                                   </span>
                                 )}
+
                               </div>
 
                               <button
@@ -1366,22 +1540,29 @@ export default function Home() {
                                 }
                                 className="w-full mt-4 h-9 rounded-lg bg-[#075d45] hover:bg-[#064c3a] text-white text-[10px] font-bold flex items-center justify-center gap-2 transition-colors"
                               >
+
                                 View Details
 
                                 <ArrowRight className="w-3.5 h-3.5" />
+
                               </button>
+
                             </div>
+
                           </article>
                         );
                       }
                     )}
+
                   </div>
                 )}
+
             </section>
 
             {/* FEATURES */}
 
             <section className="grid grid-cols-2 md:grid-cols-4 gap-5 border-t border-b border-[#e7e2cc] py-7 mt-10">
+
               <Feature
                 icon={ShieldCheck}
                 title="Verified Listings"
@@ -1391,13 +1572,13 @@ export default function Home() {
               <Feature
                 icon={Users}
                 title="Active Community"
-                text="5,000+ local farmers"
+                text="Local farmers and providers"
               />
 
               <Feature
                 icon={Headphones}
                 title="Expert Support"
-                text="Available 24/7"
+                text="Support when you need it"
               />
 
               <Feature
@@ -1405,22 +1586,29 @@ export default function Home() {
                 title="Sustainable Growth"
                 text="Eco-friendly focus"
               />
+
             </section>
 
             {/* FOOTER */}
 
             <footer className="py-7 flex flex-col md:flex-row justify-between items-center gap-5">
+
               <div className="flex items-center gap-2">
+
                 <div className="w-7 h-7 rounded-lg bg-[#075d45] text-white flex items-center justify-center">
+
                   <Leaf className="w-4 h-4" />
+
                 </div>
 
                 <span className="font-bold text-sm text-[#173e32]">
                   Agri-Connect
                 </span>
+
               </div>
 
               <div className="flex flex-wrap justify-center gap-6 text-[10px] text-[#687c72]">
+
                 <Link
                   href="/"
                   className="hover:text-[#075d45]"
@@ -1450,20 +1638,21 @@ export default function Home() {
                   List a Resource
                 </Link>
 
-                {/* ADMIN LOGIN */}
-
                 <Link
                   href="/admin/login"
                   className="text-[#89948d] hover:text-[#075d45] transition-colors"
                 >
                   Admin Login
                 </Link>
+
               </div>
 
               <p className="text-[9px] text-[#9aa39e]">
                 © 2026 Agri-Connect. All rights reserved.
               </p>
+
             </footer>
+
           </div>
         </main>
       </div>
@@ -1484,9 +1673,13 @@ export default function Home() {
             }
           }}
         >
+
           <div className="bg-[#fffdf5] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
             <div className="bg-[#d5eee0] px-6 py-5 flex items-center justify-between">
+
               <div>
+
                 <h2 className="font-serif text-xl font-bold text-[#173e32]">
                   {authMode === "login"
                     ? "Welcome Back"
@@ -1498,6 +1691,7 @@ export default function Home() {
                     ? "Login to continue to AgriConnect"
                     : "Join the AgriConnect community"}
                 </p>
+
               </div>
 
               <button
@@ -1509,12 +1703,14 @@ export default function Home() {
               >
                 <X className="w-4 h-4" />
               </button>
+
             </div>
 
             <form
               onSubmit={handleAuthSubmit}
               className="p-6 space-y-4"
             >
+
               {authError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs">
                   {authError}
@@ -1579,6 +1775,7 @@ export default function Home() {
                 disabled={authSubmitting}
                 className="w-full h-10 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
               >
+
                 {authSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1592,13 +1789,17 @@ export default function Home() {
                 ) : (
                   "Create Account"
                 )}
+
               </button>
 
               <div className="text-center pt-1">
+
                 <span className="text-[10px] text-[#7c8a83]">
+
                   {authMode === "login"
                     ? "Don't have an account?"
                     : "Already have an account?"}
+
                 </span>{" "}
 
                 <button
@@ -1614,11 +1815,15 @@ export default function Home() {
                   }}
                   className="text-[10px] font-bold text-[#075d45] hover:underline"
                 >
+
                   {authMode === "login"
                     ? "Register"
                     : "Login"}
+
                 </button>
+
               </div>
+
             </form>
           </div>
         </div>
@@ -1640,8 +1845,11 @@ export default function Home() {
             }
           }}
         >
+
           <div className="bg-[#fffdf5] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
             <div className="relative h-40">
+
               <img
                 src={
                   selectedResource.image_url ||
@@ -1664,9 +1872,11 @@ export default function Home() {
               >
                 <X className="w-4 h-4 text-[#315446]" />
               </button>
+
             </div>
 
             <div className="p-5">
+
               <span className="text-[9px] font-bold uppercase bg-[#e3f4e5] text-[#17634d] px-2 py-1 rounded">
                 {selectedResource.category ||
                   "Resource"}
@@ -1678,30 +1888,38 @@ export default function Home() {
               </h2>
 
               <div className="mt-3 space-y-2 text-xs text-[#687c72]">
+
                 <div className="flex items-center gap-2">
+
                   <MapPin className="w-4 h-4 text-[#075d45]" />
 
                   {selectedResource.location ||
                     "Location unavailable"}
+
                 </div>
 
                 {selectedResource.provider_name && (
                   <div className="flex items-center gap-2">
+
                     <User className="w-4 h-4 text-[#075d45]" />
 
                     {
                       selectedResource.provider_name
                     }
+
                   </div>
                 )}
 
                 <div className="flex items-center gap-2">
+
                   <Star className="w-4 h-4 text-[#e3a52b]" />
 
                   {selectedResource.rating ||
                     "4.8"}{" "}
                   rating
+
                 </div>
+
               </div>
 
               {selectedResource.description && (
@@ -1713,12 +1931,15 @@ export default function Home() {
               )}
 
               <div className="mt-4">
+
                 <span className="text-xl font-bold text-[#173e32]">
+
                   ₹
                   {Number(
                     selectedResource.price ||
                       0
                   ).toLocaleString("en-IN")}
+
                 </span>
 
                 {selectedResource.price_unit && (
@@ -1729,6 +1950,7 @@ export default function Home() {
                     }
                   </span>
                 )}
+
               </div>
 
               <p className="text-xs text-[#7c8a83] mt-3">
@@ -1741,6 +1963,7 @@ export default function Home() {
                 onSubmit={handleBooking}
                 className="mt-4 space-y-3"
               >
+
                 <input
                   required
                   minLength={2}
@@ -1756,6 +1979,7 @@ export default function Home() {
                 />
 
                 <div className="relative">
+
                   <Phone className="absolute left-3 top-3 w-4 h-4 text-[#8a968f]" />
 
                   <input
@@ -1772,9 +1996,11 @@ export default function Home() {
                     placeholder="Phone number"
                     className="w-full h-10 rounded-lg border border-[#dedbca] bg-white pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
                   />
+
                 </div>
 
                 <div className="flex gap-2 pt-2">
+
                   <button
                     type="button"
                     onClick={() =>
@@ -1790,6 +2016,7 @@ export default function Home() {
                     disabled={bookingLoading}
                     className="flex-1 h-10 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
                   >
+
                     {bookingLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1798,13 +2025,18 @@ export default function Home() {
                     ) : (
                       "Send Request"
                     )}
+
                   </button>
+
                 </div>
+
               </form>
+
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
@@ -1820,11 +2052,15 @@ function Feature({
 }) {
   return (
     <div className="flex items-center gap-3">
+
       <div className="w-9 h-9 rounded-full bg-[#e4f6e6] flex items-center justify-center shrink-0">
+
         <Icon className="w-4 h-4 text-[#087154]" />
+
       </div>
 
       <div>
+
         <h4 className="text-[11px] font-bold text-[#315446]">
           {title}
         </h4>
@@ -1832,7 +2068,9 @@ function Feature({
         <p className="text-[9px] text-[#8a968f] mt-0.5">
           {text}
         </p>
+
       </div>
+
     </div>
   );
 }

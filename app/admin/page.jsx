@@ -144,18 +144,33 @@ export default function AdminPage() {
   }
 
   async function updateBookingStatus(id, status) {
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status })
-      .eq("id", id);
+  const allowedStatuses = [
+    "pending",
+    "confirmed",
+    "rejected",
+    "completed",
+  ];
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await loadBookings();
+  if (!allowedStatuses.includes(status)) {
+    alert("Invalid booking status.");
+    return;
   }
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      status: status,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("BOOKING STATUS ERROR:", error);
+    alert(`Failed to update booking:\n\n${error.message}`);
+    return;
+  }
+
+  await loadBookings();
+}
 
   if (loading) {
     return (
