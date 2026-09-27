@@ -26,7 +26,6 @@ import {
   Camera,
   ArrowRight,
   Star,
-  Filter,
   ShieldCheck,
   Headphones,
   Leaf,
@@ -35,11 +34,9 @@ import {
   RefreshCw,
   Menu,
   Phone,
+  Plus,
+  ImagePlus,
 } from "lucide-react";
-
-/* =========================================================
-   IMAGES
-========================================================= */
 
 const IMAGES = {
   hero:
@@ -73,11 +70,15 @@ const IMAGES = {
     "https://images.unsplash.com/photo-1523742812070-1f2e3c3c6c0f?auto=format&fit=crop&w=900&q=80",
 };
 
-/* =========================================================
-   CATEGORIES
-========================================================= */
+const CATEGORY_IMAGES = {
+  Equipment: IMAGES.equipment,
+  Workers: IMAGES.workers,
+  Seeds: IMAGES.seeds,
+  Irrigation: IMAGES.irrigation,
+  Fertilizer: IMAGES.fertilizer,
+};
 
-const categories = [
+const CATEGORIES = [
   {
     name: "Equipment",
     icon: Tractor,
@@ -105,167 +106,132 @@ const categories = [
   },
 ];
 
-/* =========================================================
-   SIDEBAR ITEM
-========================================================= */
+const FALLBACK_IMAGES = [
+  IMAGES.resource1,
+  IMAGES.resource2,
+  IMAGES.resource3,
+];
 
-function SidebarItem({
-  icon: Icon,
-  children,
-  active = false,
-  onClick,
-}) {
+function getResourceImage(resource, index = 0) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-        active
-          ? "bg-white text-[#155c45] shadow-sm font-semibold"
-          : "text-[#42665a] hover:bg-white/70 hover:text-[#155c45]"
-      }`}
-    >
-      <Icon className="w-[18px] h-[18px]" />
-
-      <span>{children}</span>
-
-      {active && (
-        <ChevronRight className="w-4 h-4 ml-auto" />
-      )}
-    </button>
+    resource?.image_url ||
+    CATEGORY_IMAGES[resource?.category] ||
+    FALLBACK_IMAGES[index % FALLBACK_IMAGES.length]
   );
 }
 
-/* =========================================================
-   LOADING CARD
-========================================================= */
-
-function ResourceSkeleton() {
+function getProviderName(resource) {
   return (
-    <div className="bg-white rounded-xl overflow-hidden border border-[#e7e2cc] animate-pulse">
-      <div className="h-44 bg-[#e8e6d8]" />
-
-      <div className="p-4 space-y-3">
-        <div className="h-4 bg-[#e8e6d8] rounded w-3/4" />
-        <div className="h-3 bg-[#e8e6d8] rounded w-1/2" />
-        <div className="h-5 bg-[#e8e6d8] rounded w-1/3" />
-        <div className="h-9 bg-[#e8e6d8] rounded" />
-      </div>
-    </div>
+    resource?.provider_name ||
+    resource?.owner_name ||
+    resource?.provider ||
+    "Local Provider"
   );
 }
 
-/* =========================================================
-   MAIN PAGE
-========================================================= */
+function getLocation(resource) {
+  return resource?.location || "Location not specified";
+}
 
-export default function Home() {
+function getPhone(resource) {
+  return resource?.phone || "";
+}
+
+export default function HomePage() {
   const [resources, setResources] = useState([]);
 
-  const [searchQuery, setSearchQuery] =
-    useState("");
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortBy, setSortBy] = useState("default");
 
-  const [selectedCategory, setSelectedCategory] =
-    useState("All");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [supabaseError, setSupabaseError] = useState("");
 
-  const [sortBy, setSortBy] =
-    useState("distance");
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [mobileMenu, setMobileMenu] = useState(false);
 
-  const [refreshing, setRefreshing] =
-    useState(false);
+  const [selectedResource, setSelectedResource] = useState(null);
 
-  const [error, setError] =
-    useState("");
+  const [showBooking, setShowBooking] = useState(false);
+  const [bookingName, setBookingName] = useState("");
+  const [bookingPhone, setBookingPhone] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
 
-  const [mobileSidebar, setMobileSidebar] =
-    useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
+  const [authName, setAuthName] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
 
-  const [selectedResource, setSelectedResource] =
-    useState(null);
+  const [showAddResource, setShowAddResource] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState("");
 
-  const [farmerInfo, setFarmerInfo] =
-    useState({
-      name: "",
-      phone: "",
-    });
+  const [resourceForm, setResourceForm] = useState({
+    title: "",
+    category: "Equipment",
+    description: "",
+    price: "",
+    price_unit: "day",
+    location: "",
+    phone: "",
+    image_url: "",
+  });
 
-  const [bookingLoading, setBookingLoading] =
-    useState(false);
-
-  const [user, setUser] =
-    useState(null);
-
-  const [authLoading, setAuthLoading] =
-    useState(true);
-
-  const [showAuthModal, setShowAuthModal] =
-    useState(false);
-
-  const [authMode, setAuthMode] =
-    useState("login");
-
-  const [authName, setAuthName] =
-    useState("");
-
-  const [authEmail, setAuthEmail] =
-    useState("");
-
-  const [authPassword, setAuthPassword] =
-    useState("");
-
-  const [authError, setAuthError] =
-    useState("");
-
-  const [authMessage, setAuthMessage] =
-    useState("");
-
-  const [authSubmitting, setAuthSubmitting] =
-    useState(false);
-
-  /* Default location = Kochi */
-
-  const [userLocation, setUserLocation] =
-    useState({
-      lat: 9.9312,
-      lng: 76.2673,
-    });
-
-  /* =====================================================
-     INITIAL LOAD
-  ===================================================== */
+  const [userLocation, setUserLocation] = useState(null);
 
   useEffect(() => {
-    fetchResources();
-    getLocation();
+    loadResources();
+  }, []);
 
+  useEffect(() => {
     let mounted = true;
 
-    async function initializeAuth() {
+    async function loadSession() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (mounted) {
         setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const fullName =
+            session.user.user_metadata?.full_name ||
+            session.user.email?.split("@")[0] ||
+            "";
+
+          setBookingName(fullName);
+        }
+
         setAuthLoading(false);
       }
     }
 
-    initializeAuth();
+    loadSession();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (mounted) {
-          setUser(session?.user ?? null);
-          setAuthLoading(false);
-        }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        const fullName =
+          session.user.user_metadata?.full_name ||
+          session.user.email?.split("@")[0] ||
+          "";
+
+        setBookingName(fullName);
       }
-    );
+    });
 
     return () => {
       mounted = false;
@@ -273,1804 +239,2099 @@ export default function Home() {
     };
   }, []);
 
-  /* =====================================================
-     GET RESOURCES
-  ===================================================== */
+  useEffect(() => {
+    if (!navigator.geolocation) return;
 
-  async function fetchResources(refresh = false) {
-    if (refresh) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      () => {
+        setUserLocation(null);
+      }
+    );
+  }, []);
+
+  async function loadResources(isRefresh = false) {
+    if (isRefresh) {
       setRefreshing(true);
     } else {
       setLoading(true);
     }
 
-    setError("");
+    setSupabaseError("");
 
-    try {
-      const {
-        data,
-        error: supabaseError,
-      } = await supabase
-        .from("resources")
-        .select("*")
-        .eq("available", true)
-        .order("created_at", {
-          ascending: false,
-        });
+    const { data, error } = await supabase
+      .from("resources")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (supabaseError) {
-        console.error(
-          "Supabase resource error:",
-          supabaseError
-        );
-
-        setError(
-          "Unable to load resources from the database."
-        );
-
-        setResources([]);
-        return;
-      }
-
-      setResources(data || []);
-    } catch (err) {
-      console.error(
-        "Unexpected resource error:",
-        err
-      );
-
-      setError(
-        "Something went wrong while loading resources."
-      );
-
+    if (error) {
+      console.error("SUPABASE RESOURCES ERROR:", error);
+      setSupabaseError(error.message);
       setResources([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+    } else {
+      console.log("RESOURCES FROM SUPABASE:", data);
 
-  /* =====================================================
-     GET USER LOCATION
-  ===================================================== */
-
-  function getLocation() {
-    if (!navigator.geolocation) {
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      (locationError) => {
-        console.log(
-          "Location unavailable:",
-          locationError.message
-        );
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000,
-      }
-    );
-  }
-
-  /* =====================================================
-     FILTER + SEARCH + SORT
-  ===================================================== */
-
-  const filteredResources = useMemo(() => {
-    const query =
-      searchQuery.trim().toLowerCase();
-
-    const filtered = resources
-      .filter((resource) => {
-        const title =
-          resource.title || "";
-
-        const category =
-          resource.category || "";
-
-        const provider =
-          resource.provider_name || "";
-
-        const location =
-          resource.location || "";
-
-        const description =
-          resource.description || "";
-
-        const matchesCategory =
-          selectedCategory === "All" ||
-          category.toLowerCase() ===
-            selectedCategory.toLowerCase();
-
-        const searchable = `
-          ${title}
-          ${category}
-          ${provider}
-          ${location}
-          ${description}
-        `.toLowerCase();
-
-        const matchesSearch =
-          searchable.includes(query);
-
-        return (
-          matchesCategory &&
-          matchesSearch
-        );
-      })
-      .map((resource) => {
+      const normalized = (data || []).map((item, index) => {
         let distance = null;
 
         if (
-          resource.latitude != null &&
-          resource.longitude != null
+          userLocation &&
+          item.latitude != null &&
+          item.longitude != null
         ) {
-          distance = getDistanceKm(
-            userLocation.lat,
-            userLocation.lng,
-            Number(resource.latitude),
-            Number(resource.longitude)
-          );
+          try {
+            distance = getDistanceKm(
+              userLocation.latitude,
+              userLocation.longitude,
+              Number(item.latitude),
+              Number(item.longitude)
+            );
+          } catch {
+            distance = null;
+          }
         }
 
         return {
-          ...resource,
+          ...item,
           distance,
+          _index: index,
         };
       });
 
-    if (sortBy === "distance") {
-      filtered.sort((a, b) => {
-        if (a.distance == null) return 1;
-        if (b.distance == null) return -1;
-
-        return a.distance - b.distance;
-      });
+      setResources(normalized);
     }
 
-    if (sortBy === "rating") {
-      filtered.sort(
-        (a, b) =>
-          Number(b.rating || 0) -
-          Number(a.rating || 0)
-      );
-    }
-
-    if (sortBy === "price") {
-      filtered.sort(
-        (a, b) =>
-          Number(a.price || 0) -
-          Number(b.price || 0)
-      );
-    }
-
-    return filtered;
-  }, [
-    resources,
-    searchQuery,
-    selectedCategory,
-    sortBy,
-    userLocation,
-  ]);
-
-  /* =====================================================
-     FIND RESOURCES
-  ===================================================== */
-
-  function handleFindResources() {
-    document
-      .getElementById("resources")
-      ?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-  }
-
-  /* =====================================================
-     AUTH
-  ===================================================== */
-
-  function resetAuthForm() {
-    setAuthName("");
-    setAuthEmail("");
-    setAuthPassword("");
-    setAuthError("");
-    setAuthMessage("");
+    setLoading(false);
+    setRefreshing(false);
   }
 
   function openLogin() {
-    resetAuthForm();
     setAuthMode("login");
+    setAuthError("");
+    setAuthMessage("");
     setShowAuthModal(true);
   }
 
-  function openRegister() {
-    resetAuthForm();
-    setAuthMode("register");
+  function openSignup() {
+    setAuthMode("signup");
+    setAuthError("");
+    setAuthMessage("");
     setShowAuthModal(true);
   }
 
-  async function handleAuthSubmit(event) {
-    event.preventDefault();
+  async function handleAuthSubmit(e) {
+    e.preventDefault();
 
     setAuthError("");
     setAuthMessage("");
     setAuthSubmitting(true);
 
     try {
-      if (!authEmail.trim()) {
-        setAuthError(
-          "Please enter your email."
-        );
-        return;
-      }
-
-      if (authPassword.length < 6) {
-        setAuthError(
-          "Password must contain at least 6 characters."
-        );
-        return;
-      }
-
-      /* ===============================
-         REGISTER
-      =============================== */
-
-      if (authMode === "register") {
-        if (authName.trim().length < 2) {
-          setAuthError(
-            "Please enter your name."
-          );
+      if (authMode === "signup") {
+        if (!authName.trim()) {
+          setAuthError("Please enter your name.");
+          setAuthSubmitting(false);
           return;
         }
 
-        const {
-          data,
-          error: signupError,
-        } = await supabase.auth.signUp({
+        if (authPassword.length < 6) {
+          setAuthError("Password must be at least 6 characters.");
+          setAuthSubmitting(false);
+          return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
           email: authEmail.trim(),
           password: authPassword,
           options: {
             data: {
-              full_name:
-                authName.trim(),
+              full_name: authName.trim(),
             },
           },
         });
 
-        if (signupError) {
-          setAuthError(
-            signupError.message
-          );
+        if (error) {
+          setAuthError(error.message);
+          setAuthSubmitting(false);
           return;
         }
 
-        if (data?.session) {
-          setUser(data.user);
-
-          setAuthMessage(
-            "Account created successfully!"
-          );
+        if (data.session) {
+          setUser(data.session.user);
+          setShowAuthModal(false);
         } else {
           setAuthMessage(
-            "Account created! Check your email to verify your account."
+            "Account created successfully. Please check your email to verify your account."
           );
         }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: authEmail.trim(),
+          password: authPassword,
+        });
 
-        setAuthName("");
-        setAuthEmail("");
-        setAuthPassword("");
+        if (error) {
+          setAuthError(error.message);
+          setAuthSubmitting(false);
+          return;
+        }
 
-        return;
-      }
-
-      /* ===============================
-         LOGIN
-      =============================== */
-
-      const {
-        data,
-        error: loginError,
-      } = await supabase.auth.signInWithPassword({
-        email: authEmail.trim(),
-        password: authPassword,
-      });
-
-      if (loginError) {
-        setAuthError(
-          loginError.message
-        );
-        return;
-      }
-
-      if (!data?.user) {
-        setAuthError(
-          "Login failed. Please try again."
-        );
-        return;
-      }
-
-      setUser(data.user);
-
-      setAuthMessage(
-        "Login successful!"
-      );
-
-      setAuthEmail("");
-      setAuthPassword("");
-
-      setTimeout(() => {
+        setUser(data.user);
         setShowAuthModal(false);
-        setAuthMessage("");
-      }, 700);
-    } catch (err) {
-      console.error(
-        "AUTH ERROR:",
-        err
-      );
-
-      setAuthError(
-        err?.message ||
-          "Something went wrong."
-      );
-    } finally {
-      setAuthSubmitting(false);
+      }
+    } catch (error) {
+      console.error("AUTH ERROR:", error);
+      setAuthError(error.message || "Authentication failed.");
     }
+
+    setAuthSubmitting(false);
   }
 
-  /* =====================================================
-     LOGOUT
-  ===================================================== */
-
   async function handleLogout() {
-    const {
-      error: logoutError,
-    } = await supabase.auth.signOut();
-
-    if (logoutError) {
-      alert(logoutError.message);
-      return;
-    }
-
+    await supabase.auth.signOut();
     setUser(null);
   }
 
-  /* =====================================================
-     BOOK RESOURCE
-  ===================================================== */
+  function openAddResource() {
+    if (!user) {
+      openLogin();
+      return;
+    }
 
-  async function handleBooking(event) {
-    event.preventDefault();
+    setAddError("");
 
+    setResourceForm({
+      title: "",
+      category: "Equipment",
+      description: "",
+      price: "",
+      price_unit: "day",
+      location: "",
+      phone: "",
+      image_url: "",
+    });
+
+    setShowAddResource(true);
+    setMobileMenu(false);
+  }
+
+  async function handleAddResource(e) {
+    e.preventDefault();
+
+    if (!user) {
+      openLogin();
+      return;
+    }
+
+    setAddError("");
+
+    if (!resourceForm.title.trim()) {
+      setAddError("Please enter a resource name.");
+      return;
+    }
+
+    if (!resourceForm.description.trim()) {
+      setAddError("Please enter a description.");
+      return;
+    }
+
+    if (!resourceForm.price) {
+      setAddError("Please enter the price.");
+      return;
+    }
+
+    if (!resourceForm.location.trim()) {
+      setAddError("Please enter the location.");
+      return;
+    }
+
+    if (!resourceForm.phone.trim()) {
+      setAddError("Please enter a contact number.");
+      return;
+    }
+
+    setAddLoading(true);
+
+    const providerName =
+      user.user_metadata?.full_name ||
+      user.email?.split("@")[0] ||
+      "Resource Owner";
+
+    const insertData = {
+      owner_id: user.id,
+      title: resourceForm.title.trim(),
+      provider_name: providerName,
+      category: resourceForm.category,
+      description: resourceForm.description.trim(),
+      price: Number(resourceForm.price),
+      price_unit: resourceForm.price_unit,
+      location: resourceForm.location.trim(),
+      phone: resourceForm.phone.trim(),
+      image_url: resourceForm.image_url.trim() || null,
+      available: true,
+      status: "pending",
+    };
+
+    console.log("ADDING RESOURCE:", insertData);
+
+    const { error } = await supabase
+      .from("resources")
+      .insert([insertData]);
+
+    if (error) {
+      console.error("ADD RESOURCE ERROR:", error);
+      setAddError(error.message);
+      setAddLoading(false);
+      return;
+    }
+
+    alert(
+      "Resource submitted successfully!\n\nIt will appear after admin approval."
+    );
+
+    setShowAddResource(false);
+    setAddLoading(false);
+
+    await loadResources(true);
+  }
+
+  function openResource(resource) {
+    setSelectedResource(resource);
+  }
+
+  function closeResource() {
+    setSelectedResource(null);
+  }
+
+  function handleBook(resource) {
     if (!user) {
       setSelectedResource(null);
       openLogin();
       return;
     }
 
-    if (!selectedResource) {
+    setSelectedResource(resource);
+    setBookingName(
+      user.user_metadata?.full_name ||
+        user.email?.split("@")[0] ||
+        ""
+    );
+    setBookingPhone(resource.phone || "");
+    setShowBooking(true);
+  }
+
+  async function handleBooking(e) {
+    e.preventDefault();
+
+    if (!user) {
+      openLogin();
       return;
     }
 
-    const name =
-      farmerInfo.name.trim();
+    if (!selectedResource?.id) {
+      alert("Resource information is missing.");
+      return;
+    }
 
-    const phone =
-      farmerInfo.phone.trim();
-
-    if (name.length < 2) {
+    if (!bookingName.trim()) {
       alert("Please enter your name.");
       return;
     }
 
-    if (phone.length < 10) {
-      alert(
-        "Please enter a valid phone number."
-      );
+    if (!bookingPhone.trim()) {
+      alert("Please enter your phone number.");
       return;
     }
 
     setBookingLoading(true);
 
-    try {
-      const {
-        error: bookingError,
-      } = await supabase
-        .from("bookings")
-        .insert([
-          {
-            resource_id:
-              selectedResource.id,
+    const bookingData = {
+      resource_id: selectedResource.id,
+      farmer_id: user.id,
+      farmer_name: bookingName.trim(),
+      farmer_phone: bookingPhone.trim(),
+      status: "pending",
+    };
 
-            farmer_id:
-              user.id,
+    console.log("BOOKING DATA:", bookingData);
 
-            farmer_name:
-              name,
+    const { error } = await supabase
+      .from("bookings")
+      .insert([bookingData]);
 
-            farmer_phone:
-              phone,
-
-            status:
-              "pending",
-          },
-        ]);
-
-      if (bookingError) {
-        console.error(
-          "Booking error:",
-          bookingError
-        );
-
-        alert(
-          bookingError.message ||
-            "Booking failed. Please try again."
-        );
-
-        return;
-      }
+    if (error) {
+      console.error("BOOKING ERROR:", error);
 
       alert(
-        "Booking request sent successfully!"
+        `Booking failed:\n\n${error.message}`
       );
 
-      setSelectedResource(null);
-
-      setFarmerInfo({
-        name: "",
-        phone: "",
-      });
-    } catch (err) {
-      console.error(
-        "Unexpected booking error:",
-        err
-      );
-
-      alert(
-        "Something went wrong while sending your booking."
-      );
-    } finally {
       setBookingLoading(false);
+      return;
+    }
+
+    setBookingLoading(false);
+    setShowBooking(false);
+
+    alert(
+      "Booking request submitted successfully!\n\nThe provider/admin can now review your request."
+    );
+  }
+
+  function handleFindResources() {
+    const element = document.getElementById("resources");
+
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
   }
 
-  /* =====================================================
-     CLEAR FILTERS
-  ===================================================== */
+  function handleCategory(category) {
+    setSelectedCategory(category);
 
-  function clearFilters() {
-    setSearchQuery("");
-    setSelectedCategory("All");
-    setSortBy("distance");
+    const element = document.getElementById("resources");
+
+    if (element) {
+      setTimeout(() => {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    }
   }
 
-  /* =====================================================
-     SIDEBAR
-  ===================================================== */
+  const filteredResources = useMemo(() => {
+    let result = [...resources];
 
-  const Sidebar = () => (
-    <aside
-      className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-[210px] bg-[#d9f7df] border-r border-[#c9ead0] flex flex-col transition-transform duration-300 ${
-        mobileSidebar
-          ? "translate-x-0"
-          : "-translate-x-full lg:translate-x-0"
-      }`}
-    >
-      <div className="px-5 pt-5 pb-7">
-        <Link
-          href="/"
-          className="flex items-center gap-3"
-        >
-          <div className="w-9 h-9 rounded-lg bg-[#075d45] text-white flex items-center justify-center">
-            <Leaf className="w-5 h-5" />
-          </div>
+    if (selectedCategory !== "All") {
+      result = result.filter(
+        (resource) =>
+          String(resource.category || "").toLowerCase() ===
+          selectedCategory.toLowerCase()
+      );
+    }
 
-          <span className="font-bold text-[17px] text-[#173e32]">
-            Agri-Connect
-          </span>
-        </Link>
-      </div>
+    const query = search.trim().toLowerCase();
 
-      <nav className="px-3 space-y-1">
-        <SidebarItem
-          icon={Grid2X2}
-          active
-          onClick={() => {
-            setMobileSidebar(false);
+    if (query) {
+      result = result.filter((resource) => {
+        const title = String(resource.title || "").toLowerCase();
+        const category = String(resource.category || "").toLowerCase();
+        const description = String(
+          resource.description || ""
+        ).toLowerCase();
+        const provider = String(
+          getProviderName(resource)
+        ).toLowerCase();
+        const location = String(
+          getLocation(resource)
+        ).toLowerCase();
 
-            document
-              .getElementById("home")
-              ?.scrollIntoView({
-                behavior: "smooth",
-              });
-          }}
-        >
-          Dashboard
-        </SidebarItem>
+        return (
+          title.includes(query) ||
+          category.includes(query) ||
+          description.includes(query) ||
+          provider.includes(query) ||
+          location.includes(query)
+        );
+      });
+    }
 
-        <SidebarItem
-          icon={Store}
-          onClick={() => {
-            setMobileSidebar(false);
+    result = result.filter((resource) => {
+      if (resource.status === undefined || resource.status === null) {
+        return true;
+      }
 
-            document
-              .getElementById("resources")
-              ?.scrollIntoView({
-                behavior: "smooth",
-              });
-          }}
-        >
-          Marketplace
-        </SidebarItem>
+      return resource.status !== "rejected";
+    });
 
-        <SidebarItem
-          icon={Users}
-          onClick={() => {
-            alert(
-              "Community feature is coming soon."
-            );
-          }}
-        >
-          Community
-        </SidebarItem>
+    if (sortBy === "price-low") {
+      result.sort(
+        (a, b) =>
+          Number(a.price || 0) -
+          Number(b.price || 0)
+      );
+    }
 
-        <SidebarItem
-          icon={CloudSun}
-          onClick={() => {
-            alert(
-              "Weather feature is coming soon."
-            );
-          }}
-        >
-          Weather
-        </SidebarItem>
-      </nav>
+    if (sortBy === "price-high") {
+      result.sort(
+        (a, b) =>
+          Number(b.price || 0) -
+          Number(a.price || 0)
+      );
+    }
 
-      <div className="mt-auto px-3 pb-5">
-        <SidebarItem
-          icon={Settings}
-          onClick={() => {
-            alert(
-              "Settings feature is coming soon."
-            );
-          }}
-        >
-          Settings
-        </SidebarItem>
+    if (sortBy === "newest") {
+      result.sort(
+        (a, b) =>
+          new Date(b.created_at || 0) -
+          new Date(a.created_at || 0)
+      );
+    }
 
-        <div className="border-t border-[#bde1c5] my-4" />
+    return result;
+  }, [
+    resources,
+    selectedCategory,
+    search,
+    sortBy,
+  ]);
 
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-9 h-9 rounded-full bg-[#075d45] text-white flex items-center justify-center">
-            <User className="w-4 h-4" />
-          </div>
+  const categoryCounts = useMemo(() => {
+    const counts = {};
 
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-[#173e32] truncate">
-              {user
-                ? user.user_metadata?.full_name ||
-                  user.email
-                : "Guest"}
-            </p>
+    CATEGORIES.forEach((category) => {
+      counts[category.name] = resources.filter(
+        (resource) =>
+          String(resource.category || "").toLowerCase() ===
+          category.name.toLowerCase()
+      ).length;
+    });
 
-            <p className="text-[10px] text-[#608174] truncate">
-              {user?.email ||
-                "Login to your account"}
-            </p>
-          </div>
-
-          {user && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4 text-[#688579]" />
-            </button>
-          )}
-        </div>
-      </div>
-    </aside>
-  );
-
-  /* =====================================================
-     PAGE
-  ===================================================== */
+    return counts;
+  }, [resources]);
 
   return (
-    <div
-      id="home"
-      className="min-h-screen bg-[#fffdf0] text-[#173e32]"
-    >
-      <div className="flex">
-        <Sidebar />
+    <main className="min-h-screen bg-[#f8f7ef] text-[#17372b] overflow-hidden">
 
-        {mobileSidebar && (
-          <div
-            className="fixed inset-0 bg-black/30 z-40 lg:hidden"
-            onClick={() =>
-              setMobileSidebar(false)
-            }
-          />
-        )}
+      <style jsx global>{`
+        @keyframes agriFloat {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-12px);
+          }
+        }
 
-        <main className="flex-1 min-w-0">
+        @keyframes agriFloatSlow {
+          0%, 100% {
+            transform: translate3d(0, 0, 0);
+          }
+          50% {
+            transform: translate3d(20px, -20px, 0);
+          }
+        }
 
-          {/* HEADER */}
+        @keyframes agriPulse {
+          0%, 100% {
+            opacity: .25;
+            transform: scale(1);
+          }
+          50% {
+            opacity: .5;
+            transform: scale(1.08);
+          }
+        }
 
-          <header className="h-[58px] border-b border-[#e7e2cc] bg-[#fffdf0]/95 backdrop-blur sticky top-0 z-30">
-            <div className="h-full px-4 sm:px-6 lg:px-7 flex items-center justify-between">
+        @keyframes agriShimmer {
+          0% {
+            background-position: -500px 0;
+          }
+          100% {
+            background-position: 500px 0;
+          }
+        }
 
-              <div className="flex items-center gap-3">
+        .agri-float {
+          animation: agriFloat 5s ease-in-out infinite;
+        }
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMobileSidebar(true)
-                  }
-                  className="lg:hidden p-2 rounded-lg hover:bg-[#eef7e9]"
-                >
-                  <Menu className="w-5 h-5" />
-                </button>
+        .agri-float-slow {
+          animation: agriFloatSlow 9s ease-in-out infinite;
+        }
 
-                <div className="hidden sm:flex items-center gap-2 text-xs">
+        .agri-pulse {
+          animation: agriPulse 6s ease-in-out infinite;
+        }
 
-                  <span className="text-[#8b978f]">
-                    Dashboard
-                  </span>
+        .agri-shimmer {
+          background: linear-gradient(
+            90deg,
+            rgba(255,255,255,0.05),
+            rgba(255,255,255,0.25),
+            rgba(255,255,255,0.05)
+          );
+          background-size: 500px 100%;
+          animation: agriShimmer 3s infinite linear;
+        }
 
-                  <ChevronRight className="w-3 h-3 text-[#b5bdb8]" />
+        html {
+          scroll-behavior: smooth;
+        }
 
-                  <span className="font-semibold text-[#315446]">
-                    Resources
-                  </span>
+        ::selection {
+          background: #b8e6d1;
+          color: #17372b;
+        }
+      `}</style>
 
-                </div>
+      {/* Decorative Background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-0">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[#ccebdc] opacity-30 blur-3xl agri-float-slow" />
+        <div className="absolute top-[35%] -right-40 w-[450px] h-[450px] rounded-full bg-[#e8e1b9] opacity-25 blur-3xl agri-float-slow" />
+        <div className="absolute bottom-0 left-[35%] w-96 h-96 rounded-full bg-[#bce1d1] opacity-20 blur-3xl agri-pulse" />
+      </div>
 
-              </div>
+      {/* SIDEBAR */}
+      <aside className="fixed left-0 top-0 bottom-0 z-40 hidden lg:flex w-[250px] flex-col bg-[#d9eee3] border-r border-[#c6ddd1]">
 
-              <div className="flex items-center gap-4">
-
-                <div className="hidden md:flex items-center w-[250px] h-8 bg-white border border-[#ddd9c8] rounded-full px-3">
-
-                  <Search className="w-3.5 h-3.5 text-[#89948d]" />
-
-                  <input
-                    type="search"
-                    placeholder="Search tools, markets, seeds..."
-                    value={searchQuery}
-                    onChange={(event) =>
-                      setSearchQuery(
-                        event.target.value
-                      )
-                    }
-                    className="w-full bg-transparent outline-none text-xs px-2 text-[#315446] placeholder:text-[#9ca69f]"
-                  />
-
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSearchQuery("")
-                      }
-                    >
-                      <X className="w-3.5 h-3.5 text-[#89948d]" />
-                    </button>
-                  )}
-
-                </div>
-
-                <button
-                  type="button"
-                  className="relative"
-                  aria-label="Notifications"
-                >
-                  <Bell className="w-[18px] h-[18px] text-[#49675c]" />
-
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border border-[#fffdf0]" />
-                </button>
-
-                {user ? (
-                  <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-[#e0dccb]">
-
-                    <div className="w-8 h-8 rounded-full bg-[#d5eee0] flex items-center justify-center">
-                      <User className="w-4 h-4 text-[#17634d]" />
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-bold text-[#294b3e]">
-                        {user.user_metadata?.full_name ||
-                          "Farmer"}
-                      </p>
-
-                      <p className="text-[9px] text-[#8a968f]">
-                        {user.email}
-                      </p>
-                    </div>
-
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={openLogin}
-                    className="text-xs font-bold text-[#075d45] hover:underline"
-                  >
-                    Login
-                  </button>
-                )}
-
-              </div>
+        <div className="px-7 pt-8 pb-7">
+          <Link
+            href="/"
+            className="flex items-center gap-3"
+          >
+            <div className="w-11 h-11 rounded-2xl bg-[#075d45] text-white flex items-center justify-center shadow-lg">
+              <Leaf size={23} />
             </div>
-          </header>
 
-          <div className="px-4 sm:px-6 lg:px-7 py-4 lg:py-5 max-w-[1200px] mx-auto">
+            <div>
+              <h1 className="font-bold text-xl tracking-tight">
+                Agri-Connect
+              </h1>
 
-            {/* HERO */}
+              <p className="text-[10px] uppercase tracking-[0.2em] text-[#668077]">
+                Farm Resource Network
+              </p>
+            </div>
+          </Link>
+        </div>
 
-            <section className="relative h-[310px] sm:h-[350px] rounded-xl overflow-hidden shadow-sm">
+        <nav className="px-4 space-y-2">
 
-              <img
-                src={IMAGES.hero}
-                alt="Agricultural farm"
-                className="absolute inset-0 w-full h-full object-cover"
+          <button
+            onClick={() => {
+              window.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              });
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/70 text-[#075d45] font-semibold text-sm"
+          >
+            <Grid2X2 size={18} />
+            Dashboard
+          </button>
+
+          <button
+            onClick={handleFindResources}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#49645a] hover:bg-white/60 transition text-sm"
+          >
+            <Store size={18} />
+            Resources
+          </button>
+
+          <button
+            onClick={() => handleCategory("Workers")}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#49645a] hover:bg-white/60 transition text-sm"
+          >
+            <Users size={18} />
+            Workers
+          </button>
+
+          <button
+            onClick={() => handleCategory("Equipment")}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#49645a] hover:bg-white/60 transition text-sm"
+          >
+            <Tractor size={18} />
+            Equipment
+          </button>
+
+          <Link
+            href="/crop-assistant"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#49645a] hover:bg-white/60 transition text-sm"
+          >
+            <Sparkles size={18} />
+            Crop Assistant
+          </Link>
+
+          <button
+            onClick={openAddResource}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#49645a] hover:bg-white/60 transition text-sm"
+          >
+            <Plus size={18} />
+            Add Tool for Rent
+          </button>
+        </nav>
+
+        <div className="mt-auto p-5">
+
+          <div className="rounded-2xl bg-white/60 p-4 mb-4 border border-white">
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck
+                size={17}
+                className="text-[#075d45]"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-black/5" />
+              <span className="font-semibold text-sm">
+                Trusted Network
+              </span>
+            </div>
 
-              <div className="relative z-10 h-full flex flex-col justify-center px-7 sm:px-10 max-w-[600px]">
+            <p className="text-xs text-[#71867d] leading-relaxed">
+              Find agricultural resources and
+              connect with local providers.
+            </p>
+          </div>
 
-                <h1 className="font-serif text-white text-3xl sm:text-4xl lg:text-[43px] leading-[1.08] font-bold">
-                  Empowering Every
-                  <br />
-                  Farmer, Everywhere.
-                </h1>
+          <Link
+            href="/admin/login"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#49645a] hover:bg-white/70 transition text-sm"
+          >
+            <Settings size={18} />
+            Admin Login
+          </Link>
+        </div>
+      </aside>
 
-                <p className="text-white/90 text-sm sm:text-[15px] mt-4 max-w-[510px] leading-relaxed">
-                  Connect with the best tools,
-                  seeds, and local expertise to
-                  grow your harvest and community.
-                </p>
+      {/* MOBILE SIDEBAR */}
+      {mobileMenu && (
+        <div className="fixed inset-0 z-50 lg:hidden">
 
-              </div>
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setMobileMenu(false)}
+          />
 
-              <div className="absolute left-1/2 -translate-x-1/2 bottom-[-1px] w-[90%] max-w-[680px]">
+          <aside className="absolute left-0 top-0 bottom-0 w-[280px] bg-[#d9eee3] p-6 shadow-2xl">
 
-                <div className="bg-white rounded-xl shadow-xl p-1.5 flex flex-col sm:flex-row gap-1">
+            <div className="flex items-center justify-between mb-8">
 
-                  <div className="flex-1 flex items-center gap-2 px-3 h-10">
-
-                    <Search className="w-4 h-4 text-[#89948d]" />
-
-                    <input
-                      type="search"
-                      value={searchQuery}
-                      onChange={(event) =>
-                        setSearchQuery(
-                          event.target.value
-                        )
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          handleFindResources();
-                        }
-                      }}
-                      placeholder="What are you looking for?"
-                      className="w-full outline-none text-xs text-[#315446]"
-                    />
-
-                  </div>
-
-                  <div className="hidden sm:flex items-center gap-2 px-4 border-l border-[#e6e2d4] text-xs text-[#51685e]">
-
-                    <MapPin className="w-3.5 h-3.5 text-[#187154]" />
-
-                    Kochi, India
-
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleFindResources}
-                    className="h-10 px-6 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold transition-colors"
-                  >
-                    Find Resources
-                  </button>
-
-                </div>
-              </div>
-            </section>
-
-            {/* CATEGORIES */}
-
-            <section className="mt-12">
-
-              <div className="flex items-end justify-between mb-4">
-
-                <div>
-
-                  <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#173e32]">
-                    Explore by Category
-                  </h2>
-
-                  <p className="text-xs text-[#7e8b84] mt-1">
-                    Browse high-quality listings
-                    curated for your needs
-                  </p>
-
+              <Link
+                href="/"
+                className="flex items-center gap-3"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#075d45] text-white flex items-center justify-center">
+                  <Leaf size={20} />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelectedCategory("All")
-                  }
-                  className="hidden sm:block border border-[#759b89] text-[#356c57] px-3 py-1.5 rounded-lg text-[10px] font-semibold hover:bg-[#edf7ed]"
-                >
-                  View All Categories
-                </button>
-
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-
-                {categories.map((category) => {
-
-                  const selected =
-                    selectedCategory ===
-                    category.name;
-
-                  return (
-                    <button
-                      type="button"
-                      key={category.name}
-                      onClick={() =>
-                        setSelectedCategory(
-                          selected
-                            ? "All"
-                            : category.name
-                        )
-                      }
-                      className={`group text-left bg-white rounded-xl overflow-hidden border transition-all ${
-                        selected
-                          ? "border-[#177254] ring-2 ring-[#177254]/15 shadow-md"
-                          : "border-[#ebe7d7] hover:border-[#b4cdbd] hover:shadow-md"
-                      }`}
-                    >
-
-                      <div className="h-[110px] overflow-hidden bg-[#eef0e9]">
-
-                        <img
-                          src={category.image}
-                          alt={category.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-
-                      </div>
-
-                      <div className="p-3">
-
-                        <p className="text-[10px] font-bold uppercase text-[#315446]">
-                          {category.name}
-                        </p>
-
-                        <p className="text-[10px] text-[#8b968f] mt-1">
-                          Browse listings
-                        </p>
-
-                      </div>
-
-                    </button>
-                  );
-                })}
-
-              </div>
-            </section>
-
-            {/* CROP ASSISTANT */}
-
-            <section className="relative mt-7 h-[190px] sm:h-[200px] rounded-xl overflow-hidden">
-
-              <img
-                src={IMAGES.cropAssistant}
-                alt="Crop assistant"
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-
-              <div className="absolute inset-0 bg-gradient-to-r from-[#173e32]/90 via-[#173e32]/65 to-transparent" />
-
-              <div className="relative z-10 h-full flex flex-col justify-center px-6 sm:px-8 max-w-[600px]">
-
-                <div className="inline-flex w-fit items-center gap-1.5 bg-white/90 text-[#17634d] px-2.5 py-1 rounded-full text-[9px] font-bold">
-
-                  <Sparkles className="w-3 h-3" />
-
-                  NEW FEATURE
-
-                </div>
-
-                <h2 className="font-serif text-white text-2xl sm:text-3xl font-bold mt-3">
-                  Instant Crop Assistant
-                </h2>
-
-                <p className="text-white/85 text-xs sm:text-sm mt-1.5 max-w-[430px]">
-                  Upload a photo of your crop
-                  to diagnose pests, diseases,
-                  or nutrient deficiencies.
-                </p>
-
-                <div className="flex gap-2 mt-4">
-
-                  <Link
-                    href="/crop-assistant"
-                    className="inline-flex items-center gap-2 bg-white text-[#075d45] px-4 py-2 rounded-lg text-[10px] font-bold hover:bg-[#f5f5e9]"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    Upload Photo
-                  </Link>
-
-                  <Link
-                    href="/crop-assistant"
-                    className="inline-flex items-center gap-2 border border-white/60 text-white px-4 py-2 rounded-lg text-[10px] font-bold hover:bg-white/10"
-                  >
-                    Learn More
-                  </Link>
-
-                </div>
-              </div>
-            </section>
-
-            {/* RESOURCES */}
-
-            <section
-              id="resources"
-              className="mt-8 scroll-mt-20"
-            >
-
-              <div className="flex items-end justify-between mb-4">
-
-                <div>
-
-                  <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#173e32]">
-                    Resources Near You
-                  </h2>
-
-                  <p className="text-xs text-[#7e8b84] mt-1">
-                    Top rated listings available
-                    near you
-                  </p>
-
-                </div>
-
-                <div className="flex items-center gap-2">
-
-                  <select
-                    value={sortBy}
-                    onChange={(event) =>
-                      setSortBy(
-                        event.target.value
-                      )
-                    }
-                    className="hidden sm:block bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] text-[#51685e] outline-none"
-                  >
-
-                    <option value="distance">
-                      Nearest
-                    </option>
-
-                    <option value="rating">
-                      Highest Rated
-                    </option>
-
-                    <option value="price">
-                      Lowest Price
-                    </option>
-
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fetchResources(true)
-                    }
-                    disabled={refreshing}
-                    className="flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec] disabled:opacity-50"
-                  >
-
-                    <RefreshCw
-                      className={`w-3 h-3 ${
-                        refreshing
-                          ? "animate-spin"
-                          : ""
-                      }`}
-                    />
-
-                    Refresh
-
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (
-                        selectedCategory !==
-                        "All"
-                      ) {
-                        setSelectedCategory(
-                          "All"
-                        );
-                      } else {
-                        setSortBy("rating");
-                      }
-                    }}
-                    className="hidden sm:flex items-center gap-1.5 bg-white border border-[#ddd9c8] rounded-lg px-3 py-2 text-[10px] font-semibold text-[#51685e] hover:bg-[#f7f7ec]"
-                  >
-
-                    <Filter className="w-3 h-3" />
-
-                    {selectedCategory !==
-                    "All"
-                      ? "Clear Category"
-                      : "Top Rated"}
-
-                  </button>
-
-                </div>
-              </div>
-
-              {/* MOBILE SEARCH */}
-
-              <div className="md:hidden flex items-center bg-white border border-[#ddd9c8] rounded-lg px-3 mb-4">
-
-                <Search className="w-4 h-4 text-[#89948d]" />
-
-                <input
-                  value={searchQuery}
-                  onChange={(event) =>
-                    setSearchQuery(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Search resources..."
-                  className="w-full px-2 py-2.5 outline-none text-xs"
-                />
-
-              </div>
-
-              {/* ERROR */}
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
-
-                  <p>{error}</p>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fetchResources()
-                    }
-                    className="font-bold mt-2 underline"
-                  >
-                    Retry
-                  </button>
-
-                </div>
-              )}
-
-              {/* LOADING */}
-
-              {loading && (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-                  <ResourceSkeleton />
-                  <ResourceSkeleton />
-                  <ResourceSkeleton />
-
-                </div>
-              )}
-
-              {/* EMPTY */}
-
-              {!loading &&
-                filteredResources.length ===
-                  0 && (
-                  <div className="bg-white border border-[#e7e2cc] rounded-xl py-12 text-center">
-
-                    <Search className="w-8 h-8 text-[#94a49b] mx-auto" />
-
-                    <h3 className="font-bold text-sm mt-3 text-[#315446]">
-                      No resources found
-                    </h3>
-
-                    <p className="text-xs text-[#89948d] mt-1">
-                      Try a different search or
-                      category.
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="text-xs text-[#075d45] font-bold mt-3"
-                    >
-                      Clear Filters
-                    </button>
-
-                  </div>
-                )}
-
-              {/* RESOURCE CARDS */}
-
-              {!loading &&
-                filteredResources.length >
-                  0 && (
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-                    {filteredResources.map(
-                      (resource, index) => {
-
-                        const fallbackImages = [
-                          IMAGES.resource1,
-                          IMAGES.resource2,
-                          IMAGES.resource3,
-                        ];
-
-                        const image =
-                          resource.image_url ||
-                          fallbackImages[
-                            index %
-                              fallbackImages.length
-                          ];
-
-                        return (
-                          <article
-                            key={resource.id}
-                            className="bg-white rounded-xl overflow-hidden border border-[#e7e2cc] shadow-sm hover:shadow-lg transition-all group"
-                          >
-
-                            <div className="relative h-[170px] overflow-hidden">
-
-                              <img
-                                src={image}
-                                alt={
-                                  resource.title ||
-                                  "Agricultural resource"
-                                }
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              />
-
-                              <span className="absolute top-3 left-3 bg-[#075d45] text-white text-[9px] font-bold px-2.5 py-1 rounded-full">
-                                {resource.category ||
-                                  "Marketplace"}
-                              </span>
-
-                            </div>
-
-                            <div className="p-4">
-
-                              <div className="flex justify-between gap-2">
-
-                                <h3 className="font-bold text-sm text-[#24473b] leading-tight">
-                                  {resource.title ||
-                                    "Agricultural Resource"}
-                                </h3>
-
-                                <span className="flex items-center gap-1 text-[10px] text-[#547164] whitespace-nowrap">
-
-                                  <Star className="w-3 h-3 fill-[#e3a52b] text-[#e3a52b]" />
-
-                                  {resource.rating ||
-                                    "4.8"}
-
-                                </span>
-
-                              </div>
-
-                              <div className="flex items-center gap-1.5 mt-3 text-[10px] text-[#7c8a83]">
-
-                                <MapPin className="w-3 h-3" />
-
-                                {resource.location ||
-                                  "Location available"}
-
-                              </div>
-
-                              {resource.distance !=
-                                null && (
-                                <p className="text-[10px] text-[#9aa49e] mt-1">
-
-                                  {Number(
-                                    resource.distance
-                                  ).toFixed(1)}{" "}
-                                  km away
-
-                                </p>
-                              )}
-
-                              {resource.provider_name && (
-                                <p className="text-[10px] text-[#8b968f] mt-1">
-
-                                  Provider:{" "}
-                                  {
-                                    resource.provider_name
-                                  }
-
-                                </p>
-                              )}
-
-                              <div className="mt-4">
-
-                                <span className="text-lg font-bold text-[#173e32]">
-
-                                  ₹
-                                  {Number(
-                                    resource.price ||
-                                      0
-                                  ).toLocaleString(
-                                    "en-IN"
-                                  )}
-
-                                </span>
-
-                                {resource.price_unit && (
-                                  <span className="text-[10px] text-[#8d9892]">
-
-                                    /
-                                    {
-                                      resource.price_unit
-                                    }
-
-                                  </span>
-                                )}
-
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelectedResource(
-                                    resource
-                                  )
-                                }
-                                className="w-full mt-4 h-9 rounded-lg bg-[#075d45] hover:bg-[#064c3a] text-white text-[10px] font-bold flex items-center justify-center gap-2 transition-colors"
-                              >
-
-                                View Details
-
-                                <ArrowRight className="w-3.5 h-3.5" />
-
-                              </button>
-
-                            </div>
-
-                          </article>
-                        );
-                      }
-                    )}
-
-                  </div>
-                )}
-
-            </section>
-
-            {/* FEATURES */}
-
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-5 border-t border-b border-[#e7e2cc] py-7 mt-10">
-
-              <Feature
-                icon={ShieldCheck}
-                title="Verified Listings"
-                text="Every tool inspected"
-              />
-
-              <Feature
-                icon={Users}
-                title="Active Community"
-                text="Local farmers and providers"
-              />
-
-              <Feature
-                icon={Headphones}
-                title="Expert Support"
-                text="Support when you need it"
-              />
-
-              <Feature
-                icon={Leaf}
-                title="Sustainable Growth"
-                text="Eco-friendly focus"
-              />
-
-            </section>
-
-            {/* FOOTER */}
-
-            <footer className="py-7 flex flex-col md:flex-row justify-between items-center gap-5">
-
-              <div className="flex items-center gap-2">
-
-                <div className="w-7 h-7 rounded-lg bg-[#075d45] text-white flex items-center justify-center">
-
-                  <Leaf className="w-4 h-4" />
-
-                </div>
-
-                <span className="font-bold text-sm text-[#173e32]">
+                <span className="font-bold">
                   Agri-Connect
                 </span>
+              </Link>
 
-              </div>
+              <button
+                onClick={() => setMobileMenu(false)}
+                className="p-2 rounded-xl bg-white/60"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              <div className="flex flex-wrap justify-center gap-6 text-[10px] text-[#687c72]">
+            <div className="space-y-2">
 
-                <Link
-                  href="/"
-                  className="hover:text-[#075d45]"
-                >
-                  Home
-                </Link>
+              <button
+                onClick={() => {
+                  setMobileMenu(false);
+                  window.scrollTo({
+                    top: 0,
+                    behavior: "smooth",
+                  });
+                }}
+                className="w-full text-left px-4 py-3 rounded-xl bg-white/70 text-sm font-semibold"
+              >
+                Dashboard
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenu(false);
+                  handleFindResources();
+                }}
+                className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/60 text-sm"
+              >
+                Resources
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenu(false);
+                  openAddResource();
+                }}
+                className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/60 text-sm"
+              >
+                Add Tool for Rent
+              </button>
+
+              <Link
+                href="/crop-assistant"
+                onClick={() => setMobileMenu(false)}
+                className="block px-4 py-3 rounded-xl hover:bg-white/60 text-sm"
+              >
+                Crop Assistant
+              </Link>
+
+              <Link
+                href="/admin/login"
+                onClick={() => setMobileMenu(false)}
+                className="block px-4 py-3 rounded-xl hover:bg-white/60 text-sm"
+              >
+                Admin Login
+              </Link>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* MAIN */}
+      <div className="lg:ml-[250px] relative z-10">
+
+        {/* TOP BAR */}
+        <header className="h-[76px] bg-white/70 backdrop-blur-md border-b border-[#e4e7df] flex items-center justify-between px-5 md:px-8 sticky top-0 z-30">
+
+          <div className="flex items-center gap-3">
+
+            <button
+              onClick={() => setMobileMenu(true)}
+              className="lg:hidden p-2 rounded-xl hover:bg-[#edf5ef]"
+            >
+              <Menu size={22} />
+            </button>
+
+            <div className="hidden sm:flex items-center gap-2 text-xs text-[#75877f]">
+              <span>Home</span>
+              <ChevronRight size={13} />
+              <span className="text-[#17372b] font-medium">
+                Dashboard
+              </span>
+            </div>
+
+          </div>
+
+          <div className="flex items-center gap-3">
+
+            <button
+              onClick={handleFindResources}
+              className="hidden md:flex items-center gap-2 w-[230px] rounded-xl border border-[#dfe7e0] bg-white px-4 py-2.5 text-xs text-[#85938c]"
+            >
+              <Search size={15} />
+              Search resources
+            </button>
+
+            <button className="relative w-10 h-10 rounded-xl bg-white border border-[#e4e7df] flex items-center justify-center">
+              <Bell size={18} />
+
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#d56b54]" />
+            </button>
+
+            {authLoading ? (
+              <div className="w-10 h-10 rounded-full bg-[#e7eee9] animate-pulse" />
+            ) : user ? (
+              <div className="flex items-center gap-2">
+
+                <div className="hidden sm:block text-right">
+                  <p className="text-xs font-semibold">
+                    {user.user_metadata?.full_name ||
+                      user.email?.split("@")[0] ||
+                      "User"}
+                  </p>
+
+                  <p className="text-[10px] text-[#84928b]">
+                    Farmer
+                  </p>
+                </div>
 
                 <button
-                  type="button"
+                  onClick={handleLogout}
+                  title="Logout"
+                  className="w-10 h-10 rounded-full bg-[#d9eee3] text-[#075d45] flex items-center justify-center"
+                >
+                  <LogOut size={17} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={openLogin}
+                className="px-4 py-2.5 rounded-xl bg-[#075d45] text-white text-xs font-semibold hover:bg-[#064d3a] transition"
+              >
+                Login
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* HERO */}
+        <section className="px-5 md:px-8 pt-7">
+
+          <div className="relative h-[390px] md:h-[430px] rounded-[30px] overflow-hidden shadow-xl">
+
+            <img
+              src={IMAGES.hero}
+              alt="Agricultural field"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+
+            <div className="absolute inset-0 bg-gradient-to-r from-[#102c20]/85 via-[#193b29]/50 to-transparent" />
+
+            <div className="absolute inset-0 agri-shimmer opacity-30" />
+
+            <div className="relative h-full flex flex-col justify-center px-7 md:px-14 max-w-3xl text-white">
+
+              <div className="inline-flex items-center gap-2 w-fit rounded-full bg-white/15 backdrop-blur px-4 py-2 mb-5 text-xs border border-white/20">
+                <Leaf size={14} />
+                Everything farmers need, in one place
+              </div>
+
+              <h2 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
+                Empowering Every
+                <br />
+                Farmer, Everywhere.
+              </h2>
+
+              <p className="mt-5 max-w-xl text-white/80 text-sm md:text-base leading-relaxed">
+                Discover equipment, workers, seeds,
+                irrigation and fertilizers from
+                agricultural providers around you.
+              </p>
+
+              <div className="mt-8 flex flex-col sm:flex-row gap-3">
+
+                <button
                   onClick={handleFindResources}
-                  className="hover:text-[#075d45]"
+                  className="px-6 py-3.5 rounded-xl bg-white text-[#075d45] font-semibold text-sm hover:scale-[1.02] transition"
                 >
                   Explore Resources
                 </button>
 
-                <Link
-                  href="/crop-assistant"
-                  className="hover:text-[#075d45]"
+                <button
+                  onClick={openAddResource}
+                  className="px-6 py-3.5 rounded-xl bg-white/15 border border-white/30 backdrop-blur font-semibold text-sm hover:bg-white/20 transition"
                 >
-                  Crop Assistant
-                </Link>
-
-                <Link
-                  href="/provider"
-                  className="hover:text-[#075d45]"
-                >
-                  List a Resource
-                </Link>
-
-                <Link
-                  href="/admin/login"
-                  className="text-[#89948d] hover:text-[#075d45] transition-colors"
-                >
-                  Admin Login
-                </Link>
-
+                  List Your Resource
+                </button>
               </div>
+            </div>
 
-              <p className="text-[9px] text-[#9aa39e]">
-                © 2026 Agri-Connect. All rights reserved.
-              </p>
-
-            </footer>
+            <div className="absolute right-8 top-10 hidden md:block agri-float">
+              <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center">
+                <Sprout size={36} />
+              </div>
+            </div>
 
           </div>
-        </main>
-      </div>
 
-      {/* =====================================================
-          AUTH MODAL
-      ===================================================== */}
+          {/* SEARCH */}
+          <div className="relative -mt-7 mx-5 md:mx-14 z-10">
 
-      {showAuthModal && (
-        <div
-          className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              setShowAuthModal(false);
-            }
-          }}
+            <div className="bg-white rounded-2xl shadow-xl border border-[#e7e9e2] p-3 flex flex-col md:flex-row gap-3">
+
+              <div className="flex-1 flex items-center gap-3 px-4">
+                <Search
+                  size={20}
+                  className="text-[#8b9992]"
+                />
+
+                <input
+                  value={search}
+                  onChange={(e) =>
+                    setSearch(e.target.value)
+                  }
+                  placeholder="Search equipment, workers, seeds..."
+                  className="w-full outline-none text-sm bg-transparent"
+                />
+              </div>
+
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  setSortBy(e.target.value)
+                }
+                className="px-4 py-3 rounded-xl bg-[#f4f7f3] text-xs outline-none border-none"
+              >
+                <option value="default">
+                  Sort: Default
+                </option>
+                <option value="newest">
+                  Newest
+                </option>
+                <option value="price-low">
+                  Price: Low to High
+                </option>
+                <option value="price-high">
+                  Price: High to Low
+                </option>
+              </select>
+
+              <button
+                onClick={handleFindResources}
+                className="px-7 py-3 rounded-xl bg-[#075d45] text-white text-sm font-semibold"
+              >
+                Search
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* CATEGORY SECTION */}
+        <section className="px-5 md:px-8 pt-16">
+
+          <div className="flex items-end justify-between mb-6">
+
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#7c8e86] mb-2">
+                Browse resources
+              </p>
+
+              <h2 className="text-2xl md:text-3xl font-bold">
+                Find What You Need
+              </h2>
+            </div>
+
+            <button
+              onClick={() => handleCategory("All")}
+              className="hidden md:flex items-center gap-2 text-sm font-semibold text-[#075d45]"
+            >
+              View all
+              <ArrowRight size={16} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+
+            {CATEGORIES.map((category) => {
+              const Icon = category.icon;
+              const active =
+                selectedCategory === category.name;
+
+              return (
+                <button
+                  key={category.name}
+                  onClick={() =>
+                    handleCategory(category.name)
+                  }
+                  className={`group text-left rounded-2xl overflow-hidden border transition-all duration-300 ${
+                    active
+                      ? "border-[#075d45] shadow-lg scale-[1.01]"
+                      : "border-[#e1e7e2] hover:-translate-y-1 hover:shadow-lg"
+                  } bg-white`}
+                >
+                  <div className="h-32 relative overflow-hidden">
+
+                    <img
+                      src={category.image}
+                      alt={category.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+                    <div className="absolute bottom-3 left-3 w-9 h-9 rounded-xl bg-white/90 flex items-center justify-center text-[#075d45]">
+                      <Icon size={18} />
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-sm">
+                        {category.name}
+                      </h3>
+
+                      <ChevronRight
+                        size={15}
+                        className="text-[#899891]"
+                      />
+                    </div>
+
+                    <p className="text-xs text-[#87958e] mt-1">
+                      {categoryCounts[category.name] || 0} resources
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* CROP ASSISTANT */}
+        <section className="px-5 md:px-8 pt-16">
+
+          <div className="relative min-h-[260px] rounded-[28px] overflow-hidden">
+
+            <img
+              src={IMAGES.cropAssistant}
+              alt="Crop assistant"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+
+            <div className="absolute inset-0 bg-gradient-to-r from-[#153a2a]/90 via-[#24553d]/75 to-transparent" />
+
+            <div className="relative p-8 md:p-12 text-white max-w-2xl">
+
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs mb-5">
+                <Sparkles size={14} />
+                AI powered
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-bold">
+                Need help with your crop?
+              </h2>
+
+              <p className="mt-3 text-sm text-white/75 max-w-lg leading-relaxed">
+                Upload a crop leaf image and get
+                assistance identifying possible
+                diseases and recommended next steps.
+              </p>
+
+              <Link
+                href="/crop-assistant"
+                className="inline-flex items-center gap-2 mt-7 px-5 py-3 rounded-xl bg-white text-[#075d45] text-sm font-semibold hover:scale-[1.02] transition"
+              >
+                <Camera size={17} />
+                Open Crop Assistant
+                <ArrowRight size={15} />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* RESOURCES */}
+        <section
+          id="resources"
+          className="px-5 md:px-8 pt-16"
         >
 
-          <div className="bg-[#fffdf5] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-7">
 
-            <div className="bg-[#d5eee0] px-6 py-5 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#7c8e86] mb-2">
+                Marketplace
+              </p>
 
-              <div>
+              <h2 className="text-2xl md:text-3xl font-bold">
+                Agricultural Resources
+              </h2>
 
-                <h2 className="font-serif text-xl font-bold text-[#173e32]">
-                  {authMode === "login"
-                    ? "Welcome Back"
-                    : "Create Account"}
-                </h2>
+              <p className="text-sm text-[#81918a] mt-2">
+                Find useful resources from local providers.
+              </p>
+            </div>
 
-                <p className="text-xs text-[#60796e] mt-1">
-                  {authMode === "login"
-                    ? "Login to continue to AgriConnect"
-                    : "Join the AgriConnect community"}
-                </p>
+            <div className="flex items-center gap-2">
 
+              <button
+                onClick={() => handleCategory("All")}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
+                  selectedCategory === "All"
+                    ? "bg-[#075d45] text-white"
+                    : "bg-white border border-[#e2e8e3]"
+                }`}
+              >
+                All
+              </button>
+
+              <button
+                onClick={() =>
+                  loadResources(true)
+                }
+                className="w-10 h-10 rounded-xl bg-white border border-[#e2e8e3] flex items-center justify-center hover:bg-[#f0f5f1]"
+                title="Refresh"
+              >
+                <RefreshCw
+                  size={15}
+                  className={
+                    refreshing
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* SUPABASE ERROR */}
+          {supabaseError && (
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+
+              <div className="flex gap-3">
+
+                <div className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                  <X size={18} />
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-red-800 text-sm">
+                    Unable to load resources
+                  </h3>
+
+                  <p className="text-xs text-red-700 mt-1">
+                    {supabaseError}
+                  </p>
+
+                  <button
+                    onClick={() =>
+                      loadResources(true)
+                    }
+                    className="mt-3 text-xs font-semibold text-red-800 underline"
+                  >
+                    Try again
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* LOADING */}
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+              {[1, 2, 3, 4, 5, 6].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="bg-white rounded-2xl border border-[#e5e9e5] overflow-hidden"
+                  >
+                    <div className="h-48 bg-[#e8eee9] animate-pulse" />
+
+                    <div className="p-5 space-y-3">
+                      <div className="h-4 bg-[#e8eee9] rounded animate-pulse w-2/3" />
+                      <div className="h-3 bg-[#e8eee9] rounded animate-pulse w-full" />
+                      <div className="h-3 bg-[#e8eee9] rounded animate-pulse w-4/5" />
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : filteredResources.length === 0 ? (
+
+            <div className="rounded-3xl bg-white border border-[#e5e9e5] p-12 text-center">
+
+              <div className="w-16 h-16 rounded-2xl bg-[#eaf4ed] text-[#075d45] mx-auto flex items-center justify-center mb-4">
+                <Store size={28} />
+              </div>
+
+              <h3 className="text-lg font-bold">
+                No resources found
+              </h3>
+
+              <p className="text-sm text-[#87958e] mt-2 max-w-md mx-auto">
+                Try another search or category.
+                You can also add your own agricultural
+                resource.
+              </p>
+
+              <button
+                onClick={openAddResource}
+                className="mt-6 px-5 py-3 rounded-xl bg-[#075d45] text-white text-sm font-semibold"
+              >
+                Add Resource
+              </button>
+            </div>
+
+          ) : (
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+              {filteredResources.map(
+                (resource, index) => (
+                  <ResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    image={getResourceImage(
+                      resource,
+                      index
+                    )}
+                    onView={() =>
+                      openResource(resource)
+                    }
+                    onBook={() =>
+                      handleBook(resource)
+                    }
+                  />
+                )
+              )}
+
+            </div>
+          )}
+        </section>
+
+        {/* FEATURES */}
+        <section className="px-5 md:px-8 pt-16">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+            <FeatureCard
+              icon={MapPin}
+              title="Find Nearby Resources"
+              description="Discover agricultural resources and services available around your area."
+            />
+
+            <FeatureCard
+              icon={ShieldCheck}
+              title="Verified Resources"
+              description="Resources can be reviewed and approved through our admin system."
+            />
+
+            <FeatureCard
+              icon={Headphones}
+              title="Direct Contact"
+              description="Connect directly with providers to discuss availability and booking."
+            />
+
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="px-5 md:px-8 pt-20 pb-8">
+
+          <div className="border-t border-[#dfe6e0] pt-7 flex flex-col md:flex-row justify-between gap-5">
+
+            <div>
+              <div className="flex items-center gap-2">
+
+                <div className="w-9 h-9 rounded-xl bg-[#075d45] text-white flex items-center justify-center">
+                  <Leaf size={18} />
+                </div>
+
+                <span className="font-bold">
+                  Agri-Connect
+                </span>
+              </div>
+
+              <p className="text-xs text-[#7e8d86] mt-2">
+                Connecting farmers with the right resources.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[11px] text-[#687c72]">
+
+              <Link
+                href="/"
+                className="hover:text-[#075d45]"
+              >
+                Home
+              </Link>
+
+              <button
+                onClick={handleFindResources}
+                className="hover:text-[#075d45]"
+              >
+                Explore Resources
+              </button>
+
+              <Link
+                href="/crop-assistant"
+                className="hover:text-[#075d45]"
+              >
+                Crop Assistant
+              </Link>
+
+              <button
+                onClick={openAddResource}
+                className="hover:text-[#075d45]"
+              >
+                List a Resource
+              </button>
+
+              <Link
+                href="/admin/login"
+                className="hover:text-[#075d45] font-semibold"
+              >
+                Admin Login
+              </Link>
+            </div>
+
+            <p className="text-[10px] text-[#91a099]">
+              © 2026 Agri-Connect. All rights reserved.
+            </p>
+
+          </div>
+        </footer>
+      </div>
+
+      {/* RESOURCE DETAILS MODAL */}
+      {selectedResource && !showBooking && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={closeResource}
+          />
+
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-[28px] shadow-2xl">
+
+            <div className="relative h-56">
+
+              <img
+                src={getResourceImage(
+                  selectedResource
+                )}
+                alt={selectedResource.title}
+                className="w-full h-full object-cover"
+              />
+
+              <button
+                onClick={closeResource}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/40 text-white backdrop-blur flex items-center justify-center"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-7">
+
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+
+                <span className="px-3 py-1 rounded-full bg-[#e7f3eb] text-[#075d45] text-[10px] font-bold">
+                  {selectedResource.category}
+                </span>
+
+                {selectedResource.status && (
+                  <span className="px-3 py-1 rounded-full bg-[#f4f5ef] text-[#69786f] text-[10px]">
+                    {selectedResource.status}
+                  </span>
+                )}
+              </div>
+
+              <h2 className="text-2xl font-bold">
+                {selectedResource.title}
+              </h2>
+
+              <p className="text-sm text-[#788880] mt-3 leading-relaxed">
+                {selectedResource.description}
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+
+                <InfoBox
+                  icon={MapPin}
+                  label="Location"
+                  value={getLocation(
+                    selectedResource
+                  )}
+                />
+
+                <InfoBox
+                  icon={User}
+                  label="Provider"
+                  value={getProviderName(
+                    selectedResource
+                  )}
+                />
+
+                <InfoBox
+                  icon={Phone}
+                  label="Contact"
+                  value={
+                    getPhone(selectedResource) ||
+                    "Available after contact"
+                  }
+                />
+
+                <InfoBox
+                  icon={Store}
+                  label="Price"
+                  value={`₹${Number(
+                    selectedResource.price || 0
+                  ).toLocaleString("en-IN")} / ${
+                    selectedResource.price_unit || "unit"
+                  }`}
+                />
               </div>
 
               <button
-                type="button"
                 onClick={() =>
-                  setShowAuthModal(false)
+                  handleBook(selectedResource)
                 }
-                className="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+                className="w-full mt-7 py-3.5 rounded-xl bg-[#075d45] text-white font-semibold text-sm hover:bg-[#064d3a] transition"
               >
-                <X className="w-4 h-4" />
+                Request Booking
               </button>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* BOOKING MODAL */}
+      {showBooking && selectedResource && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowBooking(false)}
+          />
+
+          <div className="relative w-full max-w-lg bg-white rounded-[28px] shadow-2xl p-7">
+
+            <button
+              onClick={() => setShowBooking(false)}
+              className="absolute right-5 top-5 w-9 h-9 rounded-full bg-[#f1f4f1] flex items-center justify-center"
+            >
+              <X size={17} />
+            </button>
+
+            <p className="text-xs uppercase tracking-[0.2em] text-[#7a8b83]">
+              Booking Request
+            </p>
+
+            <h2 className="text-2xl font-bold mt-2">
+              {selectedResource.title}
+            </h2>
+
+            <p className="text-sm text-[#829089] mt-2">
+              Send your details to request this resource.
+            </p>
+
+            <form
+              onSubmit={handleBooking}
+              className="mt-6 space-y-4"
+            >
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Your Name
+                </label>
+
+                <input
+                  value={bookingName}
+                  onChange={(e) =>
+                    setBookingName(e.target.value)
+                  }
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                  placeholder="Enter your name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Phone Number
+                </label>
+
+                <input
+                  value={bookingPhone}
+                  onChange={(e) =>
+                    setBookingPhone(e.target.value)
+                  }
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                  placeholder="Enter phone number"
+                />
+              </div>
+
+              <div className="rounded-xl bg-[#f2f7f3] p-4 text-xs text-[#687b72]">
+                Your request will be submitted with
+                <strong className="text-[#075d45]">
+                  {" "}
+                  Pending
+                </strong>{" "}
+                status until it is reviewed.
+              </div>
+
+              <button
+                type="submit"
+                disabled={bookingLoading}
+                className="w-full py-3.5 rounded-xl bg-[#075d45] text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {bookingLoading ? (
+                  <>
+                    <Loader2
+                      size={17}
+                      className="animate-spin"
+                    />
+                    Sending...
+                  </>
+                ) : (
+                  "Submit Booking Request"
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* AUTH MODAL */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() =>
+              setShowAuthModal(false)
+            }
+          />
+
+          <div className="relative w-full max-w-md bg-white rounded-[28px] shadow-2xl p-7">
+
+            <button
+              onClick={() =>
+                setShowAuthModal(false)
+              }
+              className="absolute right-5 top-5 w-9 h-9 rounded-full bg-[#f1f4f1] flex items-center justify-center"
+            >
+              <X size={17} />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-[#d9eee3] text-[#075d45] flex items-center justify-center mb-5">
+              <User size={22} />
+            </div>
+
+            <h2 className="text-2xl font-bold">
+              {authMode === "login"
+                ? "Welcome Back"
+                : "Create Account"}
+            </h2>
+
+            <p className="text-sm text-[#829089] mt-2">
+              {authMode === "login"
+                ? "Login to book agricultural resources."
+                : "Create your Agri-Connect farmer account."}
+            </p>
+
+            {authError && (
+              <div className="mt-5 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+                {authError}
+              </div>
+            )}
+
+            {authMessage && (
+              <div className="mt-5 p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700">
+                {authMessage}
+              </div>
+            )}
 
             <form
               onSubmit={handleAuthSubmit}
-              className="p-6 space-y-4"
+              className="mt-6 space-y-4"
             >
 
-              {authError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs">
-                  {authError}
+              {authMode === "signup" && (
+                <div>
+                  <label className="block text-xs font-semibold mb-2">
+                    Full Name
+                  </label>
+
+                  <input
+                    value={authName}
+                    onChange={(e) =>
+                      setAuthName(e.target.value)
+                    }
+                    className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                    placeholder="Your name"
+                  />
                 </div>
               )}
 
-              {authMessage && (
-                <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2 text-xs">
-                  {authMessage}
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Email
+                </label>
 
-              {authMode === "register" && (
                 <input
-                  type="text"
-                  value={authName}
-                  onChange={(event) =>
-                    setAuthName(
-                      event.target.value
-                    )
+                  type="email"
+                  value={authEmail}
+                  onChange={(e) =>
+                    setAuthEmail(e.target.value)
                   }
-                  placeholder="Full name"
-                  autoComplete="name"
-                  className="w-full h-10 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                  placeholder="you@example.com"
                 />
-              )}
+              </div>
 
-              <input
-                required
-                type="email"
-                value={authEmail}
-                onChange={(event) =>
-                  setAuthEmail(
-                    event.target.value
-                  )
-                }
-                placeholder="Email address"
-                autoComplete="email"
-                className="w-full h-10 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
-              />
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Password
+                </label>
 
-              <input
-                required
-                type="password"
-                value={authPassword}
-                onChange={(event) =>
-                  setAuthPassword(
-                    event.target.value
-                  )
-                }
-                placeholder="Password"
-                autoComplete={
-                  authMode === "login"
-                    ? "current-password"
-                    : "new-password"
-                }
-                className="w-full h-10 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
-              />
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) =>
+                    setAuthPassword(e.target.value)
+                  }
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                  placeholder="••••••••"
+                />
+              </div>
 
               <button
                 type="submit"
                 disabled={authSubmitting}
-                className="w-full h-10 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full py-3.5 rounded-xl bg-[#075d45] text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
               >
-
                 {authSubmitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-
-                    {authMode === "login"
-                      ? "Logging in..."
-                      : "Creating account..."}
+                    <Loader2
+                      size={17}
+                      className="animate-spin"
+                    />
+                    Please wait...
                   </>
                 ) : authMode === "login" ? (
                   "Login"
                 ) : (
                   "Create Account"
                 )}
-
               </button>
+            </form>
 
-              <div className="text-center pt-1">
+            <div className="text-center mt-5 text-xs text-[#7c8c85]">
 
-                <span className="text-[10px] text-[#7c8a83]">
+              {authMode === "login" ? (
+                <>
+                  Don't have an account?{" "}
+                  <button
+                    onClick={openSignup}
+                    className="font-semibold text-[#075d45]"
+                  >
+                    Create one
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    onClick={openLogin}
+                    className="font-semibold text-[#075d45]"
+                  >
+                    Login
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-                  {authMode === "login"
-                    ? "Don't have an account?"
-                    : "Already have an account?"}
+      {/* ADD RESOURCE MODAL */}
+      {showAddResource && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
 
-                </span>{" "}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() =>
+              setShowAddResource(false)
+            }
+          />
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetAuthForm();
+          <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-white rounded-[28px] shadow-2xl p-7">
 
-                    setAuthMode(
-                      authMode === "login"
-                        ? "register"
-                        : "login"
-                    );
-                  }}
-                  className="text-[10px] font-bold text-[#075d45] hover:underline"
-                >
+            <button
+              onClick={() =>
+                setShowAddResource(false)
+              }
+              className="absolute right-5 top-5 w-9 h-9 rounded-full bg-[#f1f4f1] flex items-center justify-center"
+            >
+              <X size={17} />
+            </button>
 
-                  {authMode === "login"
-                    ? "Register"
-                    : "Login"}
+            <div className="w-12 h-12 rounded-2xl bg-[#d9eee3] text-[#075d45] flex items-center justify-center mb-5">
+              <Plus size={23} />
+            </div>
 
-                </button>
+            <h2 className="text-2xl font-bold">
+              List a Resource
+            </h2>
 
+            <p className="text-sm text-[#829089] mt-2">
+              Add equipment, workers, seeds,
+              irrigation or fertilizer for farmers.
+            </p>
+
+            <div className="mt-4 p-3 rounded-xl bg-[#f0f7f2] border border-[#dcebe0] text-xs text-[#61776c]">
+              Your resource will be submitted for
+              admin approval before appearing publicly.
+            </div>
+
+            {addError && (
+              <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+                {addError}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleAddResource}
+              className="mt-6 space-y-4"
+            >
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Resource Name
+                </label>
+
+                <input
+                  value={resourceForm.title}
+                  onChange={(e) =>
+                    setResourceForm({
+                      ...resourceForm,
+                      title: e.target.value,
+                    })
+                  }
+                  placeholder="Example: Ravi Tractor Service"
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                />
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                <div>
+                  <label className="block text-xs font-semibold mb-2">
+                    Category
+                  </label>
+
+                  <select
+                    value={resourceForm.category}
+                    onChange={(e) =>
+                      setResourceForm({
+                        ...resourceForm,
+                        category: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none bg-white"
+                  >
+                    <option value="Equipment">
+                      Equipment
+                    </option>
+
+                    <option value="Workers">
+                      Workers
+                    </option>
+
+                    <option value="Seeds">
+                      Seeds
+                    </option>
+
+                    <option value="Irrigation">
+                      Irrigation
+                    </option>
+
+                    <option value="Fertilizer">
+                      Fertilizer
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-2">
+                    Price
+                  </label>
+
+                  <div className="flex gap-2">
+
+                    <input
+                      type="number"
+                      min="0"
+                      value={resourceForm.price}
+                      onChange={(e) =>
+                        setResourceForm({
+                          ...resourceForm,
+                          price: e.target.value,
+                        })
+                      }
+                      placeholder="1200"
+                      className="min-w-0 flex-1 px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none"
+                    />
+
+                    <select
+                      value={resourceForm.price_unit}
+                      onChange={(e) =>
+                        setResourceForm({
+                          ...resourceForm,
+                          price_unit: e.target.value,
+                        })
+                      }
+                      className="w-28 px-3 py-3 rounded-xl border border-[#dfe6e1] bg-white outline-none"
+                    >
+                      <option value="day">
+                        / day
+                      </option>
+
+                      <option value="hour">
+                        / hour
+                      </option>
+
+                      <option value="week">
+                        / week
+                      </option>
+
+                      <option value="month">
+                        / month
+                      </option>
+
+                      <option value="item">
+                        / item
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Location
+                </label>
+
+                <input
+                  value={resourceForm.location}
+                  onChange={(e) =>
+                    setResourceForm({
+                      ...resourceForm,
+                      location: e.target.value,
+                    })
+                  }
+                  placeholder="Example: Idukki, Kerala"
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Contact Phone
+                </label>
+
+                <input
+                  value={resourceForm.phone}
+                  onChange={(e) =>
+                    setResourceForm({
+                      ...resourceForm,
+                      phone: e.target.value,
+                    })
+                  }
+                  placeholder="Contact number"
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Description
+                </label>
+
+                <textarea
+                  value={resourceForm.description}
+                  onChange={(e) =>
+                    setResourceForm({
+                      ...resourceForm,
+                      description: e.target.value,
+                    })
+                  }
+                  rows={4}
+                  placeholder="Describe the resource, availability and useful details..."
+                  className="w-full px-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45] resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Image URL
+                </label>
+
+                <div className="relative">
+
+                  <ImagePlus
+                    size={17}
+                    className="absolute left-4 top-3.5 text-[#8b9992]"
+                  />
+
+                  <input
+                    value={resourceForm.image_url}
+                    onChange={(e) =>
+                      setResourceForm({
+                        ...resourceForm,
+                        image_url: e.target.value,
+                      })
+                    }
+                    placeholder="https://..."
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-[#dfe6e1] outline-none focus:border-[#075d45]"
+                  />
+                </div>
+
+                <p className="text-[10px] text-[#8b9992] mt-2">
+                  Optional. If empty, Agri-Connect will
+                  use a category image.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={addLoading}
+                className="w-full py-3.5 rounded-xl bg-[#075d45] text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {addLoading ? (
+                  <>
+                    <Loader2
+                      size={17}
+                      className="animate-spin"
+                    />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={17} />
+                    Submit Resource
+                  </>
+                )}
+              </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* =====================================================
-          BOOKING MODAL
-      ===================================================== */}
+    </main>
+  );
+}
 
-      {selectedResource && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              setSelectedResource(null);
-            }
-          }}
-        >
+function ResourceCard({
+  resource,
+  image,
+  onView,
+  onBook,
+}) {
+  const price = Number(resource.price || 0);
 
-          <div className="bg-[#fffdf5] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+  return (
+    <article className="group bg-white rounded-2xl overflow-hidden border border-[#e2e8e3] hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
 
-            <div className="relative h-40">
+      <div className="relative h-48 overflow-hidden">
 
-              <img
-                src={
-                  selectedResource.image_url ||
-                  IMAGES.resource1
-                }
-                alt={
-                  selectedResource.title ||
-                  "Resource"
-                }
-                className="w-full h-full object-cover"
-              />
+        <img
+          src={image}
+          alt={resource.title || "Agricultural resource"}
+          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+        />
 
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedResource(null)
-                }
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4 text-[#315446]" />
-              </button>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
-            </div>
+        <div className="absolute top-3 left-3">
 
-            <div className="p-5">
+          <span className="px-3 py-1.5 rounded-full bg-white/90 backdrop-blur text-[10px] font-semibold text-[#075d45]">
+            {resource.category || "Resource"}
+          </span>
+        </div>
 
-              <span className="text-[9px] font-bold uppercase bg-[#e3f4e5] text-[#17634d] px-2 py-1 rounded">
-                {selectedResource.category ||
-                  "Resource"}
-              </span>
+        {resource.status === "pending" && (
+          <div className="absolute top-3 right-3">
 
-              <h2 className="font-serif text-xl font-bold text-[#173e32] mt-2">
-                {selectedResource.title ||
-                  "Agricultural Resource"}
-              </h2>
+            <span className="px-3 py-1.5 rounded-full bg-amber-100/95 text-amber-800 text-[10px] font-semibold">
+              Pending
+            </span>
+          </div>
+        )}
 
-              <div className="mt-3 space-y-2 text-xs text-[#687c72]">
+        {resource.status === "approved" && (
+          <div className="absolute top-3 right-3">
 
-                <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 rounded-full bg-white/90 text-[#075d45] text-[10px] font-semibold flex items-center gap-1">
+              <ShieldCheck size={12} />
+              Verified
+            </span>
+          </div>
+        )}
+      </div>
 
-                  <MapPin className="w-4 h-4 text-[#075d45]" />
+      <div className="p-5">
 
-                  {selectedResource.location ||
-                    "Location unavailable"}
+        <div className="flex items-start justify-between gap-3">
 
-                </div>
+          <div className="min-w-0">
 
-                {selectedResource.provider_name && (
-                  <div className="flex items-center gap-2">
+            <h3 className="font-bold text-base truncate">
+              {resource.title || "Untitled Resource"}
+            </h3>
 
-                    <User className="w-4 h-4 text-[#075d45]" />
+            <p className="text-xs text-[#81918a] mt-1">
+              {getProviderName(resource)}
+            </p>
+          </div>
 
-                    {
-                      selectedResource.provider_name
-                    }
+          <div className="text-right shrink-0">
 
-                  </div>
-                )}
+            <p className="font-bold text-[#075d45]">
+              ₹{price.toLocaleString("en-IN")}
+            </p>
 
-                <div className="flex items-center gap-2">
-
-                  <Star className="w-4 h-4 text-[#e3a52b]" />
-
-                  {selectedResource.rating ||
-                    "4.8"}{" "}
-                  rating
-
-                </div>
-
-              </div>
-
-              {selectedResource.description && (
-                <p className="text-xs text-[#7c8a83] mt-4 leading-relaxed">
-                  {
-                    selectedResource.description
-                  }
-                </p>
-              )}
-
-              <div className="mt-4">
-
-                <span className="text-xl font-bold text-[#173e32]">
-
-                  ₹
-                  {Number(
-                    selectedResource.price ||
-                      0
-                  ).toLocaleString("en-IN")}
-
-                </span>
-
-                {selectedResource.price_unit && (
-                  <span className="text-xs text-[#89948d]">
-                    /
-                    {
-                      selectedResource.price_unit
-                    }
-                  </span>
-                )}
-
-              </div>
-
-              <p className="text-xs text-[#7c8a83] mt-3">
-                Enter your details and the
-                provider can contact you to
-                confirm your booking.
-              </p>
-
-              <form
-                onSubmit={handleBooking}
-                className="mt-4 space-y-3"
-              >
-
-                <input
-                  required
-                  minLength={2}
-                  value={farmerInfo.name}
-                  onChange={(event) =>
-                    setFarmerInfo({
-                      ...farmerInfo,
-                      name: event.target.value,
-                    })
-                  }
-                  placeholder="Your name"
-                  className="w-full h-10 rounded-lg border border-[#dedbca] bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
-                />
-
-                <div className="relative">
-
-                  <Phone className="absolute left-3 top-3 w-4 h-4 text-[#8a968f]" />
-
-                  <input
-                    required
-                    minLength={10}
-                    type="tel"
-                    value={farmerInfo.phone}
-                    onChange={(event) =>
-                      setFarmerInfo({
-                        ...farmerInfo,
-                        phone: event.target.value,
-                      })
-                    }
-                    placeholder="Phone number"
-                    className="w-full h-10 rounded-lg border border-[#dedbca] bg-white pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#075d45]/20 focus:border-[#075d45]"
-                  />
-
-                </div>
-
-                <div className="flex gap-2 pt-2">
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedResource(null)
-                    }
-                    className="flex-1 h-10 border border-[#d9d5c5] rounded-lg text-xs font-semibold text-[#62736b]"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={bookingLoading}
-                    className="flex-1 h-10 bg-[#075d45] hover:bg-[#064c3a] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-                  >
-
-                    {bookingLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      "Send Request"
-                    )}
-
-                  </button>
-
-                </div>
-
-              </form>
-
-            </div>
+            <p className="text-[10px] text-[#8a9891]">
+              / {resource.price_unit || "unit"}
+            </p>
           </div>
         </div>
-      )}
 
+        <p className="text-xs text-[#71827a] mt-4 line-clamp-2 leading-relaxed min-h-[34px]">
+          {resource.description ||
+            "No description available."}
+        </p>
+
+        <div className="flex items-center gap-2 mt-4 text-xs text-[#7d8d86]">
+
+          <MapPin size={14} />
+
+          <span className="truncate">
+            {getLocation(resource)}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 mt-5">
+
+          <button
+            onClick={onView}
+            className="flex-1 py-2.5 rounded-xl border border-[#dce5df] text-xs font-semibold hover:bg-[#f3f7f4] transition"
+          >
+            View Details
+          </button>
+
+          <button
+            onClick={onBook}
+            className="flex-1 py-2.5 rounded-xl bg-[#075d45] text-white text-xs font-semibold hover:bg-[#064d3a] transition"
+          >
+            Book
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function FeatureCard({
+  icon: Icon,
+  title,
+  description,
+}) {
+  return (
+    <div className="bg-white border border-[#e3e9e4] rounded-2xl p-6 hover:-translate-y-1 hover:shadow-lg transition">
+
+      <div className="w-11 h-11 rounded-xl bg-[#e5f2e9] text-[#075d45] flex items-center justify-center mb-5">
+        <Icon size={21} />
+      </div>
+
+      <h3 className="font-bold text-base">
+        {title}
+      </h3>
+
+      <p className="text-xs text-[#7e8d86] mt-2 leading-relaxed">
+        {description}
+      </p>
     </div>
   );
 }
 
-/* =========================================================
-   FEATURE COMPONENT
-========================================================= */
-
-function Feature({
+function InfoBox({
   icon: Icon,
-  title,
-  text,
+  label,
+  value,
 }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="rounded-xl bg-[#f5f8f5] p-4">
 
-      <div className="w-9 h-9 rounded-full bg-[#e4f6e6] flex items-center justify-center shrink-0">
+      <div className="flex items-center gap-2 text-[#075d45]">
+        <Icon size={15} />
 
-        <Icon className="w-4 h-4 text-[#087154]" />
-
+        <span className="text-[10px] uppercase tracking-wider font-semibold">
+          {label}
+        </span>
       </div>
 
-      <div>
-
-        <h4 className="text-[11px] font-bold text-[#315446]">
-          {title}
-        </h4>
-
-        <p className="text-[9px] text-[#8a968f] mt-0.5">
-          {text}
-        </p>
-
-      </div>
-
+      <p className="text-xs font-medium text-[#40574d] mt-2 break-words">
+        {value}
+      </p>
     </div>
   );
 }
