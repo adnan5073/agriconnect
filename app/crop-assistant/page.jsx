@@ -8,7 +8,6 @@ import {
   Search,
   Loader2,
   AlertCircle,
-  CheckCircle2,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -23,6 +22,206 @@ export default function CropAssistantPage() {
   const [error, setError] = useState("");
 
   const [loading, setLoading] = useState(false);
+
+  // -----------------------------------------
+  // Image quality check
+  // -----------------------------------------
+
+  function checkImageQuality(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const img = new Image();
+
+        img.onload = () => {
+          const width = img.width;
+          const height = img.height;
+
+          // Very low resolution
+          if (width < 500 || height < 500) {
+            reject(
+              new Error(
+                "The image resolution is too low. Please upload a clearer and larger photo of the crop."
+              )
+            );
+            return;
+          }
+
+          // Extremely large image dimensions
+          if (width > 12000 || height > 12000) {
+            reject(
+              new Error(
+                "The image dimensions are too large. Please use a normal camera photo."
+              )
+            );
+            return;
+          }
+
+          // Canvas for basic brightness and sharpness estimation
+          const canvas =
+            document.createElement("canvas");
+
+          const maxCheckSize = 800;
+
+          let checkWidth = width;
+          let checkHeight = height;
+
+          if (checkWidth > checkHeight) {
+            if (checkWidth > maxCheckSize) {
+              checkHeight =
+                (checkHeight * maxCheckSize) /
+                checkWidth;
+
+              checkWidth = maxCheckSize;
+            }
+          } else {
+            if (checkHeight > maxCheckSize) {
+              checkWidth =
+                (checkWidth * maxCheckSize) /
+                checkHeight;
+
+              checkHeight = maxCheckSize;
+            }
+          }
+
+          canvas.width = checkWidth;
+          canvas.height = checkHeight;
+
+          const context =
+            canvas.getContext("2d", {
+              willReadFrequently: true,
+            });
+
+          if (!context) {
+            resolve();
+            return;
+          }
+
+          context.drawImage(
+            img,
+            0,
+            0,
+            checkWidth,
+            checkHeight
+          );
+
+          const imageData =
+            context.getImageData(
+              0,
+              0,
+              checkWidth,
+              checkHeight
+            );
+
+          const data = imageData.data;
+
+          let brightness = 0;
+          let contrast = 0;
+
+          const grayValues = [];
+
+          // Sample pixels instead of processing every pixel
+          const step = 4;
+
+          for (
+            let i = 0;
+            i < data.length;
+            i += 4 * step
+          ) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const gray =
+              0.299 * r +
+              0.587 * g +
+              0.114 * b;
+
+            brightness += gray;
+            grayValues.push(gray);
+          }
+
+          if (grayValues.length > 0) {
+            brightness =
+              brightness /
+              grayValues.length;
+
+            let variance = 0;
+
+            for (const value of grayValues) {
+              variance +=
+                Math.pow(
+                  value - brightness,
+                  2
+                );
+            }
+
+            contrast =
+              variance /
+              grayValues.length;
+          }
+
+          // Very dark
+          if (brightness < 25) {
+            reject(
+              new Error(
+                "The image is too dark. Please take the crop photo in better lighting."
+              )
+            );
+            return;
+          }
+
+          // Very bright
+          if (brightness > 245) {
+            reject(
+              new Error(
+                "The image is too bright or overexposed. Please take another photo with better lighting."
+              )
+            );
+            return;
+          }
+
+          // Extremely low contrast
+          if (contrast < 120) {
+            reject(
+              new Error(
+                "The image appears unclear or too flat. Please upload a clearer photo with better lighting."
+              )
+            );
+            return;
+          }
+
+          resolve({
+            width,
+            height,
+            brightness,
+            contrast,
+          });
+        };
+
+        img.onerror = () => {
+          reject(
+            new Error(
+              "This image could not be read. Please upload a valid JPG, PNG, or WebP image."
+            )
+          );
+        };
+
+        img.src = reader.result;
+      };
+
+      reader.onerror = () => {
+        reject(
+          new Error(
+            "Unable to read the selected image."
+          )
+        );
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
 
   // -----------------------------------------
   // Compress image
@@ -43,22 +242,37 @@ export default function CropAssistantPage() {
 
           if (width > height) {
             if (width > maxSize) {
-              height = (height * maxSize) / width;
+              height =
+                (height * maxSize) / width;
+
               width = maxSize;
             }
           } else {
             if (height > maxSize) {
-              width = (width * maxSize) / height;
+              width =
+                (width * maxSize) / height;
+
               height = maxSize;
             }
           }
 
-          const canvas = document.createElement("canvas");
+          const canvas =
+            document.createElement("canvas");
 
           canvas.width = width;
           canvas.height = height;
 
-          const context = canvas.getContext("2d");
+          const context =
+            canvas.getContext("2d");
+
+          if (!context) {
+            reject(
+              new Error(
+                "Unable to process the image."
+              )
+            );
+            return;
+          }
 
           context.drawImage(
             img,
@@ -68,10 +282,11 @@ export default function CropAssistantPage() {
             height
           );
 
-          const compressed = canvas.toDataURL(
-            "image/jpeg",
-            0.82
-          );
+          const compressed =
+            canvas.toDataURL(
+              "image/jpeg",
+              0.82
+            );
 
           resolve(compressed);
         };
@@ -103,7 +318,7 @@ export default function CropAssistantPage() {
   // Select image
   // -----------------------------------------
 
-  function handleFileChange(event) {
+  async function handleFileChange(event) {
     const selectedFile =
       event.target.files?.[0];
 
@@ -112,26 +327,63 @@ export default function CropAssistantPage() {
     setError("");
     setResult(null);
 
-    if (!selectedFile.type.startsWith("image/")) {
+    // File type
+    const supportedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/jpg",
+    ];
+
+    if (
+      !supportedTypes.includes(
+        selectedFile.type
+      )
+    ) {
       setError(
-        "Please select a valid image file."
+        "Unsupported image format. Please upload a JPG, PNG, or WebP image."
       );
       return;
     }
 
-    if (selectedFile.size > 8 * 1024 * 1024) {
+    // File size
+    if (
+      selectedFile.size >
+      8 * 1024 * 1024
+    ) {
       setError(
         "Image must be smaller than 8 MB."
       );
       return;
     }
 
-    setFile(selectedFile);
+    setLoading(true);
 
-    const url =
-      URL.createObjectURL(selectedFile);
+    try {
+      // Technical image quality check
+      await checkImageQuality(
+        selectedFile
+      );
 
-    setPreview(url);
+      setFile(selectedFile);
+
+      const url =
+        URL.createObjectURL(
+          selectedFile
+        );
+
+      setPreview(url);
+    } catch (error) {
+      setError(
+        error?.message ||
+          "The selected image is not suitable for crop analysis."
+      );
+
+      setFile(null);
+      setPreview("");
+    } finally {
+      setLoading(false);
+    }
   }
 
   // -----------------------------------------
@@ -178,7 +430,8 @@ export default function CropAssistantPage() {
 
           body: JSON.stringify({
             crop: crop.trim(),
-            question: question.trim(),
+            question:
+              question.trim(),
             image: base64Image,
             fileName: file.name,
             fileType: "image/jpeg",
@@ -186,19 +439,29 @@ export default function CropAssistantPage() {
         }
       );
 
-      const data =
-        await response.json();
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "The server returned an invalid response. Please try again."
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Unable to process the image."
+            "Unable to analyze the image."
         );
       }
 
-      if (!data.success || !data.result) {
+      if (
+        !data.success ||
+        !data.result
+      ) {
         throw new Error(
-          "The AI did not return a valid result."
+          "The AI did not return a valid crop assessment."
         );
       }
 
@@ -209,10 +472,30 @@ export default function CropAssistantPage() {
         error
       );
 
-      setError(
+      let message =
         error?.message ||
-          "Unable to process the crop image."
-      );
+        "Unable to process the crop image.";
+
+      if (
+        message.includes(
+          "Failed to fetch"
+        )
+      ) {
+        message =
+          "Unable to connect to the AI service. Please check your internet connection and try again.";
+      }
+
+      if (
+        message.includes("503") ||
+        message.includes(
+          "UNAVAILABLE"
+        )
+      ) {
+        message =
+          "The AI service is temporarily busy. Please wait a few seconds and try again.";
+      }
+
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -449,6 +732,7 @@ export default function CropAssistantPage() {
           display: flex;
           gap: 10px;
           align-items: flex-start;
+          line-height: 1.5;
         }
 
         .result {
@@ -643,7 +927,9 @@ export default function CropAssistantPage() {
                     type="file"
                     accept="image/*"
                     capture="environment"
-                    onChange={handleFileChange}
+                    onChange={
+                      handleFileChange
+                    }
                   />
 
                   <div className="upload-icon">
@@ -677,7 +963,9 @@ export default function CropAssistantPage() {
           {/* QUESTION */}
           <section className="card">
 
-            <h2>2. Ask the Crop Assistant</h2>
+            <h2>
+              2. Ask the Crop Assistant
+            </h2>
 
             <label className="field-label">
               Crop name
@@ -694,11 +982,19 @@ export default function CropAssistantPage() {
             />
 
             <label className="field-label">
-              What would you like to know? <span style={{ color: "#7a877f", fontWeight: 400 }}>(Optional)</span>
+              What would you like to know?{" "}
+              <span
+                style={{
+                  color: "#7a877f",
+                  fontWeight: 400,
+                }}
+              >
+                (Optional)
+              </span>
             </label>
 
             <textarea
-              placeholder="Optional: Example: What could be causing these spots on my tomato leaves?"
+              placeholder="Optional: Ask anything about your crop..."
               value={question}
               onChange={(e) =>
                 setQuestion(e.target.value)
@@ -710,6 +1006,7 @@ export default function CropAssistantPage() {
               <button
                 className="button camera"
                 type="button"
+                disabled={loading}
                 onClick={() =>
                   document
                     .getElementById(
@@ -727,7 +1024,9 @@ export default function CropAssistantPage() {
                 type="file"
                 accept="image/*"
                 capture="environment"
-                onChange={handleFileChange}
+                onChange={
+                  handleFileChange
+                }
                 style={{
                   display: "none",
                 }}
@@ -827,7 +1126,15 @@ export default function CropAssistantPage() {
                 <div
                   className="bar-fill"
                   style={{
-                    width: `${result.confidence}%`,
+                    width: `${Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        Number(
+                          result.confidence
+                        ) || 0
+                      )
+                    )}%`,
                   }}
                 />
               </div>
