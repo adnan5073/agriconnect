@@ -10,12 +10,14 @@
 
 
 ### Team Members
-- Team Lead: [Name] - [College]
-- Member 2: [Name] - [College]
-- Member 3: [Name] - [College]
+- Team Lead: [Hady Sinan] - [GECI]
+- Member 2: [Adnan] - [GECI]
+- Member 3: [Misab] - [GECI]
 
 ### Project Description
-[2-3 lines about what your project does]
+[AgriConnect is a smart agricultural platform that connects farmers with equipment, workers, seeds, fertilizers, irrigation resources, and other essential services.
+It provides location-based resource discovery, booking, direct communication, and reliable agricultural information in one platform.
+An AI-powered crop disease assistant helps farmers identify crop problems from leaf images, while automated notifications keep users updated about their requests.]
 
 ### The Problem (that doesn't exist)
 [What ridiculous problem are you solving?]
@@ -26,72 +28,41 @@
 ## Technical Details
 ### Technologies/Components Used
 For Software:
-- [Languages used]
-- [Frameworks used]
-- [Libraries used]
-- [Tools used]
+- [JavaScript, JSX, SQL, HTML, CSS]
+- [Next.js, React.js]
+- [Supabase JS, Lucide React, Google Generative AI SDK]
+- [Visual Studio Code, Git, GitHub, Supabase, Vercel, Resend API, Google Gemini APIFor Hardware:
 
-For Hardware:
-- [List main components]
-- [List specifications]
-- [List tools required]
+Schematic & Circuit
 
-### Implementation
-For Software:
-# Installation
-[commands]
 
-# Run
-[commands]
+Not applicable because AgriConnect is a software-only project and does not require electronic circuits.
 
-### Project Documentation
-For Software:
 
-# Screenshots (Add at least 3)
-![Screenshot1](Add screenshot 1 here with proper name)
-*Add caption explaining what this shows*
+Not applicable because the project does not contain hardware components or electronic circuits.
 
-![Screenshot2](Add screenshot 2 here with proper name)
-*Add caption explaining what this shows*
+Build Photos
 
-![Screenshot3](Add screenshot 3 here with proper name)
-*Add caption explaining what this shows*
 
-# Diagrams
-![Workflow](Add your workflow/architecture diagram here)
-*Add caption explaining your workflow*
+Development setup used for building and testing the AgriConnect platform.
 
-For Hardware:
 
-# Schematic & Circuit
-![Circuit](Add your circuit diagram here)
-*Add caption explaining connections*
+Development process including frontend development, Supabase integration, AI integration, admin dashboard development, and testing.
 
-![Schematic](Add your schematic diagram here)
-*Add caption explaining the schematic*
 
-# Build Photos
-![Components](Add photo of your components here)
-*List out all components shown*
+Final AgriConnect web application providing agricultural resources, AI crop assistance, and resource management.
 
-![Build](Add photos of build process here)
-*Explain the build steps*
+Project Demo
+Video
 
-![Final](Add photo of final product here)
-*Explain the final build*
-
-### Project Demo
-# Video
 [Add your demo video link here]
-*Explain what the video demonstrates*
 
-# Additional Demos
-[Add any extra demo materials/links]
+The video demonstrates the main features of AgriConnect, including resource discovery, farmer requests, AI crop disease analysis, admin management, and email notifications.
 
-## Team Contributions
-- [Name 1]: [Specific contributions]
-- [Name 2]: [Specific contributions]
-- [Name 3]: [Specific contributions]
-
----
-Made with ❤️ at MuLearn MakeMu
+Additional Demos
+Live Website: https://agriconnect-dhkr.vercel.app/
+GitHub Repository: https://github.com/adnan5073/agriconnect
+Team Contributions
+Adnan: Full-stack development, frontend development, Supabase integration, AI Crop Assistant, backend APIs, email notification system, GitHub management, and deployment.
+Hady Sinan: Project presentation, documentation, research, and demo preparation.
+Misab: UI/UX design, visual design, graphics, and interface planning.
